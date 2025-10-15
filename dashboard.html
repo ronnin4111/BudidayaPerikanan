@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>CLEAN BLUE — Filter, Statistik, Peta & Excel</title>
+
+<!-- Tailwind -->
+<script src="https://cdn.tailwindcss.com"></script>
+<!-- AlpineJS -->
+<script src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
+<!-- Leaflet -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<!-- SheetJS untuk Excel -->
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+
+<style>
+  body { background: #f0f9ff; }
+  table th, table td { border: 1px solid #e2e8f0; }
+  [x-cloak] { display: none !important; }
+  #map { width: 100%; height: 400px; border-radius: 12px; margin-bottom: 1rem; }
+</style>
+</head>
+
+<body class="text-gray-800" x-data="cleanBlueApp()" x-init="init()">
+
+<header class="bg-cyan-600 text-white py-4 shadow-md text-center font-bold text-xl">
+  CLEAN BLUE — FILTER, STATISTIK, PETA & EXCEL
+</header>
+
+<div class="max-w-7xl mx-auto mt-6 px-4 grid grid-cols-1 md:grid-cols-4 gap-4">
+
+  <!-- SIDEBAR -->
+  <aside class="bg-white rounded-xl shadow p-4 space-y-5">
+    <h2 class="text-cyan-700 font-semibold text-lg mb-2">Statistik</h2>
+    
+    <!-- Statistik Box -->
+    <div class="grid grid-cols-1 gap-2 text-sm">
+      <template x-for="stat in stats" :key="stat.label">
+        <div class="flex justify-between border-b pb-1">
+          <span class="font-medium" x-text="stat.label"></span>
+          <span>
+            <b x-text="stat.value"></b>
+            <template x-if="stat.percent !== null">
+              <span class="text-gray-500 text-xs"> (<span x-text="stat.percent"></span>%)</span>
+            </template>
+          </span>
+        </div>
+      </template>
+    </div>
+
+    <hr class="my-3">
+
+    <h2 class="text-cyan-700 font-semibold text-lg mb-2">Filter Utama</h2>
+
+    <!-- Filter Dropdown -->
+    <template x-for="(opts, key) in filtersDef" :key="key">
+      <div class="relative" x-data="{ open:false }">
+        <label class="block text-sm text-gray-600 mb-1" x-text="opts.label"></label>
+        <div @click="open=!open" class="border rounded p-2 cursor-pointer bg-white hover:bg-cyan-50">
+          <template x-if="selected[key].length === 0">
+            <span class="text-gray-400 text-sm">Pilih...</span>
+          </template>
+          <template x-if="selected[key].length > 0">
+            <span class="text-sm text-cyan-700 font-medium" x-text="selected[key].join(', ')"></span>
+          </template>
+        </div>
+
+        <div x-show="open" x-cloak @click.outside="open=false"
+             class="absolute z-10 bg-white border rounded shadow mt-1 w-full max-h-56 overflow-y-auto">
+          <template x-for="opt in opts.options" :key="opt">
+            <label class="flex items-center px-2 py-1 hover:bg-cyan-50 cursor-pointer">
+              <input type="checkbox" class="mr-2"
+                     :value="opt"
+                     @change="toggleSelect(key,opt)"
+                     :checked="selected[key].includes(opt)">
+              <span x-text="opt"></span>
+            </label>
+          </template>
+        </div>
+      </div>
+    </template>
+
+    <button @click="resetFilters" class="w-full mt-2 bg-gray-200 rounded py-2 hover:bg-gray-300">
+      Reset Semua Filter
+    </button>
+  </aside>
+
+  <!-- MAIN -->
+  <main class="md:col-span-3 bg-white rounded-xl shadow p-4 overflow-x-auto">
+    
+    <div class="flex flex-col md:flex-row md:items-center md:justify-between mb-3 gap-3">
+      <input type="text" placeholder="🔍 Cari nama, kelompok, desa..." 
+             class="border rounded-lg p-2 text-sm w-64 focus:outline-none focus:ring focus:ring-cyan-300"
+             x-model="searchQuery" @input="applyFilters">
+
+      <button @click="downloadExcel"
+              class="bg-cyan-600 text-white px-3 py-2 rounded-lg text-sm hover:bg-cyan-700 transition">
+        💾 Download Excel
+      </button>
+    </div>
+
+    <div id="map"></div>
+
+    <div class="flex justify-between items-center mb-2">
+      <h3 class="text-cyan-700 font-semibold text-lg">Data Pelaku Usaha</h3>
+      <span class="text-sm text-gray-600">Total: <b x-text="filtered.length"></b> titik</span>
+    </div>
+
+    <table class="min-w-full text-sm">
+      <thead class="bg-cyan-600 text-white">
+        <tr>
+          <th class="p-2 text-left">Nama</th>
+          <th class="p-2 text-left">Kelompok</th>
+          <th class="p-2 text-left">Kecamatan</th>
+          <th class="p-2 text-left">Desa</th>
+          <th class="p-2 text-left">Jenis Usaha</th>
+          <th class="p-2 text-left">Wadah</th>
+          <th class="p-2 text-left">Jenis Ikan</th>
+          <th class="p-2 text-right">Produksi (Kg)</th>
+        </tr>
+      </thead>
+      <tbody>
+        <template x-for="(row,i) in filtered" :key="i">
+          <tr class="hover:bg-cyan-50">
+            <td class="p-2" x-text="row.nama"></td>
+            <td class="p-2" x-text="row.kelompok"></td>
+            <td class="p-2" x-text="row.kecamatan"></td>
+            <td class="p-2" x-text="row.desa"></td>
+            <td class="p-2" x-text="row.jenis_usaha"></td>
+            <td class="p-2" x-text="row.wadah_budidaya"></td>
+            <td class="p-2" x-text="row.jenis_ikan"></td>
+            <td class="p-2 text-right" x-text="(row.produksi||0).toLocaleString()"></td>
+          </tr>
+        </template>
+        <tr x-show="filtered.length===0">
+          <td colspan="8" class="text-center text-gray-500 p-4">Tidak ada data</td>
+        </tr>
+      </tbody>
+    </table>
+  </main>
+</div>
+
+<script>
+function cleanBlueApp(){
+return {
+  sheetURL: "https://docs.google.com/spreadsheets/d/1WvFGRiuiJiGGdhLp1EqtKPhqHi7yNn8UipH_VRK-zFo/gviz/tq?tqx=out:json",
+  rawData: [], filtered: [], searchQuery: "", map: null, markers: [],
+  totalCount: 0,
+  stats: [
+    {label:"Kusuka", value:0, percent:0},
+    {label:"NIB", value:0, percent:0},
+    {label:"CPIB", value:0, percent:0},
+    {label:"CBIB", value:0, percent:0},
+    {label:"Kusuka Kelompok", value:0, percent:null},
+    {label:"Jumlah Kolam", value:0, percent:null},
+    {label:"Luas Lahan (m²)", value:0, percent:null},
+    {label:"Produksi (Kg)", value:0, percent:null}
+  ],
+
+  filtersDef: {
+    kecamatan:{label:'Kecamatan',options:[]},
+    desa:{label:'Desa',options:[]},
+    jenis_usaha:{label:'Jenis Usaha',options:[]},
+    wadah_budidaya:{label:'Wadah Budidaya',options:[]},
+    jenis_ikan:{label:'Jenis Ikan',options:[]}
+  },
+  selected:{kecamatan:[],desa:[],jenis_usaha:[],wadah_budidaya:[],jenis_ikan:[]},
+
+  async init(){
+    const res = await fetch(this.sheetURL);
+    const text = await res.text();
+    const json = JSON.parse(text.match(/setResponse\(([\s\S]*)\);/)[1]);
+    const cols = json.table.cols.map(c=>(c.label||"").trim());
+    const rows = json.table.rows.map(r=>{
+      const obj={};
+      (r.c||[]).forEach((c,i)=>obj[cols[i]]=c?(c.v!==undefined?c.v:(c.f||'')):'');
+      return obj;
+    });
+
+    this.rawData = rows.map(r=>({
+      nama: r["NAMA PELAKU USAHA"]||"",
+      kelompok: r["KELOMPOK"]||r["NAMA KELOMPOK"]||"",
+      kecamatan: r["KECAMATAN"]||"",
+      desa: r["LOKASI USAHA (DESA)"]||"",
+      jenis_usaha: r["JENIS USAHA"]||"",
+      wadah_budidaya: r["WADAH BUDIDAYA"]||"",
+      jenis_ikan: [r["JENIS IKAN UTAMA"],r["JENIS IKAN TAMBAHAN 1"],r["JENIS IKAN TAMBAHAN 2"]].filter(v=>v&&v.trim()!=="").join(", "),
+      kolam: parseFloat(r["JUMLAH KOLAM"]||r["P"]||0)||0,
+      lahan: parseFloat(r["LUAS LAHAN (m2)"]||r["Q"]||0)||0,
+      produksi: parseFloat((r["PRODUKSI (Kg)"]||r["U"]||"0").toString().replace(/,/g,''))||0,
+      kusuka: parseInt(r["KUSUKA"]||r["W"]||0),
+      nib: parseInt(r["NIB"]||r["X"]||0),
+      cpib: parseInt(r["CPIB"]||r["Y"]||0),
+      cbib: parseInt(r["CBIB"]||r["Z"]||0),
+      kusuka_kelompok: parseInt(r["KUSUKA KELOMPOK"]||r["AA"]||0),
+      lat: parseFloat(r["LAT"]||r["LATITUDE"]||""),
+      lng: parseFloat(r["LONG"]||r["LONGITUDE"]||"")
+    }));
+
+    this.totalCount = this.rawData.length;
+    this.updateFilterOptions();
+    this.applyFilters();
+    this.initMap();
+  },
+
+  initMap(){
+    this.map = L.map('map').setView([-3.8,114.8],9);
+    L.tileLayer('https://{s}.google.com/vt/lyrs=y&x={x}&y={y}&z={z}',{
+      maxZoom:20,subdomains:['mt0','mt1','mt2','mt3']
+    }).addTo(this.map);
+    this.updateMapMarkers();
+  },
+
+  updateMapMarkers(){
+    if(!this.map) return;
+    this.markers.forEach(m=>this.map.removeLayer(m));
+    this.markers=[];
+    this.filtered.forEach(r=>{
+      if(r.lat&&r.lng){
+        const m=L.marker([r.lat,r.lng]).addTo(this.map);
+        m.bindPopup(`<b>${r.nama}</b><br>${r.kelompok}<br>${r.desa}, ${r.kecamatan}`);
+        this.markers.push(m);
+      }
+    });
+    if(this.filtered.length>0){
+      const bounds=L.latLngBounds(this.filtered.filter(r=>r.lat&&r.lng).map(r=>[r.lat,r.lng]));
+      this.map.fitBounds(bounds);
+    }
+  },
+
+  toggleSelect(k,v){
+    const arr=this.selected[k];
+    const i=arr.indexOf(v);
+    if(i===-1)arr.push(v);else arr.splice(i,1);
+    this.updateFilterOptions();this.applyFilters();
+  },
+
+  resetFilters(){
+    Object.keys(this.selected).forEach(k=>this.selected[k]=[]);
+    this.updateFilterOptions();this.applyFilters();
+  },
+
+  updateFilterOptions(){
+    const uniq=a=>Array.from(new Set(a.filter(v=>v))).sort((a,b)=>a.localeCompare(b));
+    let filteredData=[...this.rawData];
+    if(this.selected.kecamatan.length>0)
+      filteredData=filteredData.filter(r=>this.selected.kecamatan.includes(r.kecamatan));
+    this.filtersDef.kecamatan.options=uniq(this.rawData.map(r=>r.kecamatan));
+    this.filtersDef.desa.options=uniq(filteredData.map(r=>r.desa));
+    this.filtersDef.jenis_usaha.options=uniq(this.rawData.map(r=>r.jenis_usaha));
+    this.filtersDef.wadah_budidaya.options=uniq(this.rawData.map(r=>r.wadah_budidaya));
+    this.filtersDef.jenis_ikan.options=uniq(this.rawData.flatMap(r=>r.jenis_ikan.split(",").map(v=>v.trim())).filter(v=>v));
+  },
+
+  applyFilters(){
+    this.filtered=this.rawData.filter(r=>{
+      const match=Object.keys(this.selected).every(k=>{
+        if(this.selected[k].length===0)return true;
+        if(k==="jenis_ikan"){
+          return this.selected[k].some(val=>r.jenis_ikan.includes(val));
+        }
+        return this.selected[k].includes(r[k]);
+      });
+      const search=this.searchQuery.trim()===""||
+        Object.values(r).join(" ").toLowerCase().includes(this.searchQuery.toLowerCase());
+      return match&&search;
+    });
+    this.updateStats();this.updateMapMarkers();
+  },
+
+  updateStats(){
+    const total=this.totalCount||1;
+    const f=this.filtered;
+    const sum=(a,k)=>a.reduce((t,x)=>t+(x[k]||0),0);
+    const count=(a,k)=>a.filter(x=>x[k]>0).length;
+
+    const kusuka=count(f,"kusuka");
+    const nib=count(f,"nib");
+    const cpib=count(f,"cpib");
+    const cbib=count(f,"cbib");
+    const kusuka_kelompok=f.reduce((acc,x)=>{
+  return acc + (x.kusuka_kelompok ? 1 : 0);
+},0);
+
+    const kolam=sum(f,"kolam");
+    const lahan=sum(f,"lahan");
+    const produksi=sum(f,"produksi");
+
+    this.stats=[
+      {label:"Kusuka",value:kusuka,percent:((kusuka/total)*100).toFixed(0)},
+      {label:"NIB",value:nib,percent:((nib/total)*100).toFixed(0)},
+      {label:"CPIB",value:cpib,percent:((cpib/total)*100).toFixed(0)},
+      {label:"CBIB",value:cbib,percent:((cbib/total)*100).toFixed(0)},
+      {label:"Kusuka Kelompok",value:kusuka_kelompok,percent:null},
+      {label:"Jumlah Kolam",value:kolam.toLocaleString(),percent:null},
+      {label:"Luas Lahan (m²)",value:lahan.toLocaleString(),percent:null},
+      {label:"Produksi (Kg)",value:produksi.toLocaleString(),percent:null}
+    ];
+  },
+
+  downloadExcel(){
+    if(this.filtered.length===0){alert("Tidak ada data untuk diunduh.");return;}
+    const ws=XLSX.utils.json_to_sheet(this.filtered);
+    const wb=XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb,ws,"Data Pelaku Usaha");
+    XLSX.writeFile(wb,"data_pelaku_usaha.xlsx");
+  }
+}}
+</script>
+
+</body>
+</html>
