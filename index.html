@@ -427,30 +427,38 @@ return {
 
   },
 
- updateBarChart(){
-  const targetLabels = ["Kusuka", "NIB", "CPIB", "CBIB", "Jumlah Kolam", "Luas Lahan (m²)", "Produksi (Kg)"];
+updateBarChart() {
+  // Ambil data untuk chart
+  const data = this.stats
+    .filter(s => s.value !== null && !["Kusuka Kelompok", "Jumlah Kelompok"].includes(s.label))
+    .map(s => {
+      const v = s.value;
+      return typeof v === "number" ? v : Number(v.toString().replace(/,/g, '')) || 0;
+    });
 
-  const chartStats = this.stats.filter(s => targetLabels.includes(s.label));
-  const labels = chartStats.map(s => s.label);
-  const data = chartStats.map(s => {
-    const val = s.value;
-    return typeof val === "number" ? val : Number(val.toString().replace(/,/g, '')) || 0;
-  });
+  const labels = this.stats
+    .filter(s => s.value !== null && !["Kusuka Kelompok", "Jumlah Kelompok"].includes(s.label))
+    .map(s => s.label);
 
-  // Warna untuk masing-masing pie slice
+  // Warna-warna untuk segment pie
   const colors = [
-    '#06b6d4', '#0ea5e9', '#0284c7', '#0369a1', '#14b8a6', '#10b981', '#84cc16'
+    '#06b6d4', '#0ea5e9', '#14b8a6', '#10b981', '#f59e0b', '#ef4444', '#6366f1'
   ];
 
-  // Hapus chart lama jika ada
-  if(this.barChart) this.barChart.destroy();
+  // Deteksi dark mode dari sistem
+  const isDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+
+  // Hancurkan chart sebelumnya jika ada
+  if (this.barChart) this.barChart.destroy();
 
   const ctx = document.getElementById('barChart').getContext('2d');
+
   this.barChart = new Chart(ctx, {
     type: 'pie',
     data: {
       labels: labels,
       datasets: [{
+        label: 'Statistik',
         data: data,
         backgroundColor: colors
       }]
@@ -459,27 +467,22 @@ return {
       responsive: true,
       plugins: {
         legend: {
-          position: 'bottom',
           labels: {
-            font: { size: 12 },
-            color: '#333'
+            color: isDark ? '#ffffff' : '#1f2937', // teks putih di dark mode
+            font: {
+              size: 10
+            }
           }
         },
         tooltip: {
-          callbacks: {
-            label: function(context) {
-              const label = context.label || '';
-              const value = context.raw || 0;
-              return `${label}: ${value.toLocaleString()}`;
-            }
-          }
+          bodyColor: isDark ? '#ffffff' : '#1f2937',
+          titleColor: isDark ? '#ffffff' : '#1f2937',
+          backgroundColor: isDark ? '#1f2937' : '#f9fafb'
         }
       }
     }
   });
 },
-
-
 
   updateJumlahKelompok() {
   // Ambil semua kelompok unik dari filtered, abaikan sel kosong
