@@ -21,20 +21,25 @@
   [x-cloak] { display: none !important; }
   #map { width: 100%; height: 400px; border-radius: 12px; margin-bottom: 1rem; }
 </style>
+<!-- Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
 </head>
 
 <body class="text-gray-800" x-data="cleanBlueApp()" x-init="init()">
 
-<header class="bg-cyan-600 text-white py-4 shadow-md text-center font-bold text-xl">
-  CLEAN BLUE — FILTER, STATISTIK, PETA & EXCEL
+<header class="bg-cyan-600 text-white py-4 shadow-md flex items-center justify-center gap-4 px-4">
+  <img src="logo.png" alt="Logo" class="h-8 md:h-[3.5rem] w-auto rounded-md shadow bg-white p-1">
+  <span class="font-bold text-lg md:text-[1.75rem] text-center leading-tight">DATA PERIKANAN BUDIDAYA <br class="md:hidden">DPKPP KAB. MEMPAWAH</span>
 </header>
+
 
 <div class="max-w-7xl mx-auto mt-6 px-4 grid grid-cols-1 md:grid-cols-4 gap-4">
 
   <!-- SIDEBAR -->
   <aside class="bg-white rounded-xl shadow p-4 space-y-5">
     <h2 class="text-cyan-700 font-semibold text-lg mb-2">Statistik</h2>
-    
+        
     <!-- Statistik Box -->
     <div class="grid grid-cols-1 gap-2 text-sm">
       <template x-for="stat in stats" :key="stat.label">
@@ -49,43 +54,150 @@
         </div>
       </template>
     </div>
+<canvas id="barChart" class="mt-4"></canvas>
 
     <hr class="my-3">
 
-    <h2 class="text-cyan-700 font-semibold text-lg mb-2">Filter Utama</h2>
+        <!-- Filter Dropdown -->
+    <h2 class="text-cyan-700 font-semibold text-lg mb-2">🔍 Filter Utama</h2>
 
-    <!-- Filter Dropdown -->
-    <template x-for="(opts, key) in filtersDef" :key="key">
-      <div class="relative" x-data="{ open:false }">
-        <label class="block text-sm text-gray-600 mb-1" x-text="opts.label"></label>
-        <div @click="open=!open" class="border rounded p-2 cursor-pointer bg-white hover:bg-cyan-50">
-          <template x-if="selected[key].length === 0">
-            <span class="text-gray-400 text-sm">Pilih...</span>
-          </template>
-          <template x-if="selected[key].length > 0">
-            <span class="text-sm text-cyan-700 font-medium" x-text="selected[key].join(', ')"></span>
-          </template>
-        </div>
 
-        <div x-show="open" x-cloak @click.outside="open=false"
-             class="absolute z-10 bg-white border rounded shadow mt-1 w-full max-h-56 overflow-y-auto">
-          <template x-for="opt in opts.options" :key="opt">
-            <label class="flex items-center px-2 py-1 hover:bg-cyan-50 cursor-pointer">
-              <input type="checkbox" class="mr-2"
-                     :value="opt"
-                     @change="toggleSelect(key,opt)"
-                     :checked="selected[key].includes(opt)">
-              <span x-text="opt"></span>
-            </label>
-          </template>
-        </div>
-      </div>
-    </template>
+<div class="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
+  <!-- Kecamatan -->
+  <div x-data="{ open: false }">
+    <label class="block text-gray-600 mb-1">Kecamatan</label>
+    <div @click="open = !open" class="border rounded p-2 cursor-pointer bg-white hover:bg-cyan-50">
+      <template x-if="selected.kecamatan.length === 0">
+        <span class="text-gray-400">Pilih...</span>
+      </template>
+      <template x-if="selected.kecamatan.length > 0">
+        <span class="text-cyan-700 font-medium" x-text="selected.kecamatan.join(', ')"></span>
+      </template>
+    </div>
+    <div x-show="open" x-cloak @click.outside="open = false"
+         class="absolute z-10 bg-white border rounded shadow mt-1 w-full max-h-56 overflow-y-auto">
+      <template x-for="opt in filtersDef.kecamatan.options" :key="opt">
+        <label class="flex items-center px-2 py-1 hover:bg-cyan-50 cursor-pointer">
+          <input type="checkbox" class="mr-2"
+                 :value="opt"
+                 @change="toggleSelect('kecamatan', opt)"
+                 :checked="selected.kecamatan.includes(opt)">
+          <span x-text="opt"></span>
+        </label>
+      </template>
+    </div>
+  </div>
 
-    <button @click="resetFilters" class="w-full mt-2 bg-gray-200 rounded py-2 hover:bg-gray-300">
-      Reset Semua Filter
+  <!-- Desa -->
+  <div x-data="{ open: false }">
+    <label class="block text-gray-600 mb-1">Desa</label>
+    <div @click="open = !open" class="border rounded p-2 cursor-pointer bg-white hover:bg-cyan-50">
+      <template x-if="selected.desa.length === 0">
+        <span class="text-gray-400">Pilih...</span>
+      </template>
+      <template x-if="selected.desa.length > 0">
+        <span class="text-cyan-700 font-medium" x-text="selected.desa.join(', ')"></span>
+      </template>
+    </div>
+    <div x-show="open" x-cloak @click.outside="open = false"
+         class="absolute z-10 bg-white border rounded shadow mt-1 w-full max-h-56 overflow-y-auto">
+      <template x-for="opt in filtersDef.desa.options" :key="opt">
+        <label class="flex items-center px-2 py-1 hover:bg-cyan-50 cursor-pointer">
+          <input type="checkbox" class="mr-2"
+                 :value="opt"
+                 @change="toggleSelect('desa', opt)"
+                 :checked="selected.desa.includes(opt)">
+          <span x-text="opt"></span>
+        </label>
+      </template>
+    </div>
+  </div>
+
+  <!-- Jenis Usaha -->
+  <div x-data="{ open: false }">
+    <label class="block text-gray-600 mb-1">Jenis Usaha</label>
+    <div @click="open = !open" class="border rounded p-2 cursor-pointer bg-white hover:bg-cyan-50">
+      <template x-if="selected.jenis_usaha.length === 0">
+        <span class="text-gray-400">Pilih...</span>
+      </template>
+      <template x-if="selected.jenis_usaha.length > 0">
+        <span class="text-cyan-700 font-medium" x-text="selected.jenis_usaha.join(', ')"></span>
+      </template>
+    </div>
+    <div x-show="open" x-cloak @click.outside="open = false"
+         class="absolute z-10 bg-white border rounded shadow mt-1 w-full max-h-56 overflow-y-auto">
+      <template x-for="opt in filtersDef.jenis_usaha.options" :key="opt">
+        <label class="flex items-center px-2 py-1 hover:bg-cyan-50 cursor-pointer">
+          <input type="checkbox" class="mr-2"
+                 :value="opt"
+                 @change="toggleSelect('jenis_usaha', opt)"
+                 :checked="selected.jenis_usaha.includes(opt)">
+          <span x-text="opt"></span>
+        </label>
+      </template>
+    </div>
+  </div>
+
+  <!-- Wadah Budidaya -->
+  <div x-data="{ open: false }">
+    <label class="block text-gray-600 mb-1">Wadah Budidaya</label>
+    <div @click="open = !open" class="border rounded p-2 cursor-pointer bg-white hover:bg-cyan-50">
+      <template x-if="selected.wadah_budidaya.length === 0">
+        <span class="text-gray-400">Pilih...</span>
+      </template>
+      <template x-if="selected.wadah_budidaya.length > 0">
+        <span class="text-cyan-700 font-medium" x-text="selected.wadah_budidaya.join(', ')"></span>
+      </template>
+    </div>
+    <div x-show="open" x-cloak @click.outside="open = false"
+         class="absolute z-10 bg-white border rounded shadow mt-1 w-full max-h-56 overflow-y-auto">
+      <template x-for="opt in filtersDef.wadah_budidaya.options" :key="opt">
+        <label class="flex items-center px-2 py-1 hover:bg-cyan-50 cursor-pointer">
+          <input type="checkbox" class="mr-2"
+                 :value="opt"
+                 @change="toggleSelect('wadah_budidaya', opt)"
+                 :checked="selected.wadah_budidaya.includes(opt)">
+          <span x-text="opt"></span>
+        </label>
+      </template>
+    </div>
+  </div>
+
+  <!-- Jenis Ikan (diletakkan sendiri agar bisa sejajar dengan tombol reset) -->
+  <div class="sm:col-span-1" x-data="{ open: false }">
+    <label class="block text-gray-600 mb-1">Jenis Ikan</label>
+    <div @click="open = !open" class="border rounded p-2 cursor-pointer bg-white hover:bg-cyan-50">
+      <template x-if="selected.jenis_ikan.length === 0">
+        <span class="text-gray-400">Pilih...</span>
+      </template>
+      <template x-if="selected.jenis_ikan.length > 0">
+        <span class="text-cyan-700 font-medium" x-text="selected.jenis_ikan.join(', ')"></span>
+      </template>
+    </div>
+    <div x-show="open" x-cloak @click.outside="open = false"
+         class="absolute z-10 bg-white border rounded shadow mt-1 w-full max-h-56 overflow-y-auto">
+      <template x-for="opt in filtersDef.jenis_ikan.options" :key="opt">
+        <label class="flex items-center px-2 py-1 hover:bg-cyan-50 cursor-pointer">
+          <input type="checkbox" class="mr-2"
+                 :value="opt"
+                 @change="toggleSelect('jenis_ikan', opt)"
+                 :checked="selected.jenis_ikan.includes(opt)">
+          <span x-text="opt"></span>
+        </label>
+      </template>
+    </div>
+  </div>
+
+  <!-- Tombol Reset Filter -->
+  <div class="flex items-end sm:justify-end">
+    <button @click="resetFilters" class="w-full sm:w-auto mt-1 bg-gray-200 rounded py-2 px-4 hover:bg-gray-300 text-sm">
+      🔄 Reset Filter
     </button>
-  </aside>
+  </div>
+</div>
+
+
+      </aside>
 
   <!-- MAIN -->
   <main class="md:col-span-3 bg-white rounded-xl shadow p-4 overflow-x-auto">
@@ -311,9 +423,65 @@ return {
       {label:"Produksi (Kg)",value:produksi.toLocaleString(),percent:null}
       
     ];
+    this.updateBarChart();
+
   },
 
- updateJumlahKelompok() {
+ updateBarChart(){
+  const targetLabels = ["Kusuka", "NIB", "CPIB", "CBIB", "Jumlah Kolam", "Luas Lahan (m²)", "Produksi (Kg)"];
+
+  const chartStats = this.stats.filter(s => targetLabels.includes(s.label));
+  const labels = chartStats.map(s => s.label);
+  const data = chartStats.map(s => {
+    const val = s.value;
+    return typeof val === "number" ? val : Number(val.toString().replace(/,/g, '')) || 0;
+  });
+
+  // Warna untuk masing-masing pie slice
+  const colors = [
+    '#06b6d4', '#0ea5e9', '#0284c7', '#0369a1', '#14b8a6', '#10b981', '#84cc16'
+  ];
+
+  // Hapus chart lama jika ada
+  if(this.barChart) this.barChart.destroy();
+
+  const ctx = document.getElementById('barChart').getContext('2d');
+  this.barChart = new Chart(ctx, {
+    type: 'pie',
+    data: {
+      labels: labels,
+      datasets: [{
+        data: data,
+        backgroundColor: colors
+      }]
+    },
+    options: {
+      responsive: true,
+      plugins: {
+        legend: {
+          position: 'bottom',
+          labels: {
+            font: { size: 12 },
+            color: '#333'
+          }
+        },
+        tooltip: {
+          callbacks: {
+            label: function(context) {
+              const label = context.label || '';
+              const value = context.raw || 0;
+              return `${label}: ${value.toLocaleString()}`;
+            }
+          }
+        }
+      }
+    }
+  });
+},
+
+
+
+  updateJumlahKelompok() {
   // Ambil semua kelompok unik dari filtered, abaikan sel kosong
   const kelompokSet = new Set();
 
