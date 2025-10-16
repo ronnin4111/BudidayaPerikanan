@@ -154,6 +154,7 @@ return {
     {label:"CPIB", value:0, percent:0},
     {label:"CBIB", value:0, percent:0},
     {label:"Kusuka Kelompok", value:0, percent:null},
+    {label:"Jumlah Kelompok", value:0, percent:null},
     {label:"Jumlah Kolam", value:0, percent:null},
     {label:"Luas Lahan (m²)", value:0, percent:null},
     {label:"Produksi (Kg)", value:0, percent:null}
@@ -192,7 +193,7 @@ return {
       produksi: parseFloat((r["PRODUKSI (Kg)"]||r["U"]||"0").toString().replace(/,/g,''))||0,
       kusuka: parseInt(r["KUSUKA"]||r["W"]||0),
       nib: parseInt(r["NIB"]||r["X"]||0),
-      cpib: parseInt(r["CPIB"]||r["Y"]||0),
+      cpib: r["CPIB"] || r["Y"] || '',  // simpan apa adanya sebagai string
       cbib: parseInt(r["CBIB"]||r["Z"]||0),
       kusuka_kelompok: parseInt(r["KUSUKA KELOMPOK"]||r["AA"]||0),
       lat: parseFloat(r["LAT"]||r["LATITUDE"]||""),
@@ -202,6 +203,7 @@ return {
     this.totalCount = this.rawData.length;
     this.updateFilterOptions();
     this.applyFilters();
+    this.updateJumlahKelompok();
     this.initMap();
   },
 
@@ -255,19 +257,21 @@ return {
   },
 
   applyFilters(){
-    this.filtered=this.rawData.filter(r=>{
-      const match=Object.keys(this.selected).every(k=>{
-        if(this.selected[k].length===0)return true;
-        if(k==="jenis_ikan"){
-          return this.selected[k].some(val=>r.jenis_ikan.includes(val));
+    this.filtered = this.rawData.filter(r => {
+      const match = Object.keys(this.selected).every(k => {
+        if(this.selected[k].length === 0) return true;
+        if(k === "jenis_ikan"){
+          return this.selected[k].some(val => r.jenis_ikan.includes(val));
         }
         return this.selected[k].includes(r[k]);
       });
-      const search=this.searchQuery.trim()===""||
-        Object.values(r).join(" ").toLowerCase().includes(this.searchQuery.toLowerCase());
-      return match&&search;
+      const search = this.searchQuery.trim() === "" ||
+                     Object.values(r).join(" ").toLowerCase().includes(this.searchQuery.toLowerCase());
+      return match && search;
     });
-    this.updateStats();this.updateMapMarkers();
+   this.updateStats();
+   this.updateJumlahKelompok();
+   this.updateMapMarkers();
   },
 
   updateStats(){
@@ -275,15 +279,22 @@ return {
     const f=this.filtered;
     const sum=(a,k)=>a.reduce((t,x)=>t+(x[k]||0),0);
     const count=(a,k)=>a.filter(x=>x[k]>0).length;
+    const countNonEmpty = (data, key) => {
+  return data.reduce((total, row) => {
+    const val = row[key];
+    if (val !== null && val !== undefined && val.toString().trim() !== '') {
+      return total + 1;
+    }
+    return total;
+  }, 0);
+};
+
 
     const kusuka=count(f,"kusuka");
     const nib=count(f,"nib");
-    const cpib=count(f,"cpib");
+    const cpib = countNonEmpty(f, "cpib");
     const cbib=count(f,"cbib");
-    const kusuka_kelompok=f.reduce((acc,x)=>{
-  return acc + (x.kusuka_kelompok ? 1 : 0);
-},0);
-
+    const kusuka_kelompok=f.reduce((acc,x)=>{ return acc + (x.kusuka_kelompok ? 1 : 0); },0);
     const kolam=sum(f,"kolam");
     const lahan=sum(f,"lahan");
     const produksi=sum(f,"produksi");
@@ -296,9 +307,32 @@ return {
       {label:"Kusuka Kelompok",value:kusuka_kelompok,percent:null},
       {label:"Jumlah Kolam",value:kolam.toLocaleString(),percent:null},
       {label:"Luas Lahan (m²)",value:lahan.toLocaleString(),percent:null},
+      {label:"Jumlah Kelompok", value:0, percent:null},
       {label:"Produksi (Kg)",value:produksi.toLocaleString(),percent:null}
+      
     ];
   },
+
+ updateJumlahKelompok() {
+  // Ambil semua kelompok unik dari filtered, abaikan sel kosong
+  const kelompokSet = new Set();
+
+  this.filtered.forEach(r => {
+    if(r.kelompok && r.kelompok.trim() !== '') {
+      kelompokSet.add(r.kelompok.trim());
+    }
+  });
+
+  const jumlahKelompok = kelompokSet.size;
+
+  // Update sidebar statistik Jumlah Kelompok
+  this.stats = this.stats.map(stat => {
+    if(stat.label === "Jumlah Kelompok") {
+      return { ...stat, value: jumlahKelompok, percent: null };
+    }
+    return stat;
+  });
+},
 
   downloadExcel(){
     if(this.filtered.length===0){alert("Tidak ada data untuk diunduh.");return;}
