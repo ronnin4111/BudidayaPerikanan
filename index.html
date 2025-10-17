@@ -267,7 +267,7 @@
   <table class="text-sm border-collapse table-auto w-max min-w-full">
     <thead class="bg-cyan-600 text-white">
       <tr>
-        <th class="p-2 text-left sticky top-0 left-0 bg-cyan-700 z-20 whitespace-nowrap">Nama</th>
+        <th class="p-2 text-left sticky top-0 bg-cyan-600 z-10 whitespace-nowrap">Nama</th>
         <th class="p-2 text-left sticky top-0 bg-cyan-600 z-10 whitespace-nowrap">Kelompok</th>
         <th class="p-2 text-left sticky top-0 bg-cyan-600 z-10 whitespace-nowrap">Kecamatan</th>
         <th class="p-2 text-left sticky top-0 bg-cyan-600 z-10 whitespace-nowrap">Desa</th>
@@ -286,7 +286,7 @@
     <tbody>
       <template x-for="(row, i) in filtered" :key="i">
         <tr class="hover:bg-cyan-50">
-          <td class="p-2 sticky left-0 bg-white z-10 whitespace-nowrap" x-text="row.nama"></td>
+          <td class="p-2 whitespace-nowrap" x-text="row.nama"></td>
           <td class="p-2 whitespace-nowrap" x-text="row.kelompok"></td>
           <td class="p-2 whitespace-nowrap" x-text="row.kecamatan"></td>
           <td class="p-2 whitespace-nowrap" x-text="row.desa"></td>
