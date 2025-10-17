@@ -26,6 +26,7 @@
 <!-- Plugin Data Labels -->
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2"></script>
 
+
 </head>
 
 <body class="text-gray-800" x-data="cleanBlueApp()" x-init="init()">
@@ -152,7 +153,8 @@
     </div>
   </div>
 
-    <!-- Jenis Usaha -->
+    
+  <!-- Jenis Usaha -->
   <div x-data="{ open: false }">
     <label class="block text-gray-600 mb-1">Jenis Usaha</label>
     <div @click="open = !open" class="border rounded p-2 cursor-pointer bg-white hover:bg-cyan-50">
@@ -393,7 +395,7 @@ selected:{kecamatan:[],desa:[],kelompok:[],jenis_usaha:[],wadah_budidaya:[],jeni
     this.filtered.forEach(r=>{
       if(r.lat&&r.lng){
         const m=L.marker([r.lat,r.lng]).addTo(this.map);
-        m.bindPopup(`<b>${r.nama}</b><br>${r.kelompok}<br>${r.desa}, ${r.kecamatan}`);
+        m.bindPopup(`<b>${r.nama}</b><br>${r.kelompok}<br>${r.jenis_ikan}<br> ${r.desa}`);
         this.markers.push(m);
       }
     });
@@ -659,4 +661,3 @@ this.barChart = new Chart(ctx, {
 
 </body>
 </html>
-
