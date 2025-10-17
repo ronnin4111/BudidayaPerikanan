@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>CLEAN BLUE — Filter, Statistik, Peta & Excel</title>
+<title>DATA PERIKANAN BUDIDAYA</title>
 
 <!-- Tailwind -->
 <script src="https://cdn.tailwindcss.com"></script>
@@ -237,36 +237,49 @@
     </div>
 
     <table class="min-w-full text-sm">
-      <thead class="bg-cyan-600 text-white">
-        <tr>
-          <th class="p-2 text-left">Nama</th>
-          <th class="p-2 text-left">Kelompok</th>
-          <th class="p-2 text-left">Kecamatan</th>
-          <th class="p-2 text-left">Desa</th>
-          <th class="p-2 text-left">Jenis Usaha</th>
-          <th class="p-2 text-left">Wadah</th>
-          <th class="p-2 text-left">Jenis Ikan</th>
-          <th class="p-2 text-right">Produksi (Kg)</th>
-        </tr>
-      </thead>
-      <tbody>
-        <template x-for="(row,i) in filtered" :key="i">
-          <tr class="hover:bg-cyan-50">
-            <td class="p-2" x-text="row.nama"></td>
-            <td class="p-2" x-text="row.kelompok"></td>
-            <td class="p-2" x-text="row.kecamatan"></td>
-            <td class="p-2" x-text="row.desa"></td>
-            <td class="p-2" x-text="row.jenis_usaha"></td>
-            <td class="p-2" x-text="row.wadah_budidaya"></td>
-            <td class="p-2" x-text="row.jenis_ikan"></td>
-            <td class="p-2 text-right" x-text="(row.produksi||0).toLocaleString()"></td>
-          </tr>
-        </template>
-        <tr x-show="filtered.length===0">
-          <td colspan="8" class="text-center text-gray-500 p-4">Tidak ada data</td>
-        </tr>
-      </tbody>
-    </table>
+  <thead class="bg-cyan-600 text-white">
+    <tr>
+      <th class="p-2 text-left">Nama</th>
+      <th class="p-2 text-left">Kelompok</th>
+      <th class="p-2 text-left">Kecamatan</th>
+      <th class="p-2 text-left">Desa</th>
+      <th class="p-2 text-left">Jenis Usaha</th>
+      <th class="p-2 text-left">Wadah</th>
+      <th class="p-2 text-left">Jenis Ikan</th>
+      <th class="p-2 text-right">Produksi (Kg)</th>
+      <th class="p-2 text-center">KUSUKA</th>
+      <th class="p-2 text-center">NIB</th>
+      <th class="p-2 text-center">CPIB</th>
+      <th class="p-2 text-center">CBIB</th>
+      <th class="p-2 text-right">Jumlah Kolam</th>
+      <th class="p-2 text-right">Luas Lahan (m²)</th>
+    </tr>
+  </thead>
+  <tbody>
+    <template x-for="(row,i) in filtered" :key="i">
+      <tr class="hover:bg-cyan-50">
+        <td class="p-2" x-text="row.nama"></td>
+        <td class="p-2" x-text="row.kelompok"></td>
+        <td class="p-2" x-text="row.kecamatan"></td>
+        <td class="p-2" x-text="row.desa"></td>
+        <td class="p-2" x-text="row.jenis_usaha"></td>
+        <td class="p-2" x-text="row.wadah_budidaya"></td>
+        <td class="p-2" x-text="row.jenis_ikan"></td>
+        <td class="p-2 text-right" x-text="(row.produksi||0).toLocaleString()"></td>
+        <td class="p-2 text-center" x-text="row.kusuka || '-'"></td>
+        <td class="p-2 text-center" x-text="row.nib ? '✅' : '-'"></td>
+        <td class="p-2 text-center" x-text="row.cpib ? '✅' : '-'"></td>
+        <td class="p-2 text-center" x-text="row.cbib ? '✅' : '-'"></td>
+        <td class="p-2 text-right" x-text="(row.kolam||0).toLocaleString()"></td>
+        <td class="p-2 text-right" x-text="(row.lahan||0).toLocaleString()"></td>
+      </tr>
+    </template>
+    <tr x-show="filtered.length===0">
+      <td colspan="14" class="text-center text-gray-500 p-4">Tidak ada data</td>
+    </tr>
+  </tbody>
+</table>
+
   </main>
 </div>
 
@@ -583,12 +596,34 @@ this.barChart = new Chart(ctx, {
 },
 
   downloadExcel(){
-    if(this.filtered.length===0){alert("Tidak ada data untuk diunduh.");return;}
-    const ws=XLSX.utils.json_to_sheet(this.filtered);
-    const wb=XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb,ws,"Data Pelaku Usaha");
-    XLSX.writeFile(wb,"data_pelaku_usaha.xlsx");
+  if(this.filtered.length === 0){
+    alert("Tidak ada data untuk diunduh.");
+    return;
   }
+
+  // Salin data dan pastikan kusuka adalah string
+  const exportData = this.filtered.map(row => {
+    return {
+      ...row,
+      kusuka: row.kusuka ? `'${row.kusuka.toString()}` : '' // <- tambahkan tanda kutip agar Excel baca sebagai teks
+    };
+  });
+
+  const ws = XLSX.utils.json_to_sheet(exportData);
+
+  // Optional: Format kolom kusuka sebagai teks di Excel
+  const kusukaCol = Object.keys(exportData[0]).indexOf("kusuka");
+  if (kusukaCol >= 0) {
+    const colLetter = XLSX.utils.encode_col(kusukaCol);
+    for(let i = 1; i <= exportData.length; i++) {
+      ws[`${colLetter}${i+1}`].z = '@'; // Format teks
+    }
+  }
+
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, "Data Pelaku Usaha");
+  XLSX.writeFile(wb, "data_pelaku_usaha.xlsx");
+}
 }}
 
 </script>
