@@ -240,18 +240,18 @@
 
     <div id="scrollContainer" class="overflow-x-auto cursor-grab">
 
-    <div class="flex flex-col md:flex-row md:items-center md:justify-between mb-3 gap-3">
-      <input type="text" placeholder="🔍 Cari nama, kelompok, desa..." 
-             class="border rounded-lg p-2 text-sm w-64 focus:outline-none focus:ring focus:ring-cyan-300"
-             x-model="searchQuery" @input="applyFilters">
+ <!-- 🔍 Area Pencarian dan Tombol (Selalu Muncul Lebih Dulu) -->
+<div class="flex items-center justify-between mb-4 px-2">
+  <input type="text" placeholder="🔍 Cari nama, kelompok, desa..." class="w-full max-w-md px-3 py-2 border rounded shadow-sm focus:outline-none" />
+  
+  <!-- ✅ MODIFIKASI DI SINI -->
+  <button @click="downloadExcel" class="ml-4 bg-blue-600 text-white px-4 py-2 rounded shadow hover:bg-blue-700 transition">⬇️ Download Excel</button>
+</div>
 
-      <button @click="downloadExcel"
-              class="bg-cyan-600 text-white px-3 py-2 rounded-lg text-sm hover:bg-cyan-700 transition">
-        💾 Download Excel
-      </button>
-    </div>
 
-    <div id="map"></div>
+<!-- 🗺️ Container Peta -->
+<div id="map" class="w-full h-[500px] rounded-lg shadow border"></div>
+
 
     <div class="flex justify-between items-center mb-2">
       <h3 class="text-cyan-700 font-semibold text-lg">Data Pelaku Usaha</h3>
