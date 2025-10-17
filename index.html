@@ -152,32 +152,7 @@
     </div>
   </div>
 
-    <!-- Kelompok -->
-  <div x-data="{ open: false }">
-    <label class="block text-gray-600 mb-1">Kelompok</label>
-    <div @click="open = !open" class="border rounded p-2 cursor-pointer bg-white hover:bg-cyan-50">
-      <template x-if="selected.kelompok.length === 0">
-        <span class="text-gray-400">Pilih...</span>
-      </template>
-      <template x-if="selected.kelompok.length > 0">
-        <span class="text-cyan-700 font-medium" x-text="selected.kelompok.join(', ')"></span>
-      </template>
-    </div>
-    <div x-show="open" x-cloak @click.outside="open = false"
-         class="absolute z-10 bg-white border rounded shadow mt-1 w-full max-h-56 overflow-y-auto">
-      <template x-for="opt in filtersDef.kelompok.options" :key="opt">
-        <label class="flex items-center px-2 py-1 hover:bg-cyan-50 cursor-pointer">
-          <input type="checkbox" class="mr-2"
-                 :value="opt"
-                 @change="toggleSelect('kelompok', opt)"
-                 :checked="selected.kelompok.includes(opt)">
-          <span x-text="opt"></span>
-        </label>
-      </template>
-    </div>
-  </div>
-
-  <!-- Jenis Usaha -->
+    <!-- Jenis Usaha -->
   <div x-data="{ open: false }">
     <label class="block text-gray-600 mb-1">Jenis Usaha</label>
     <div @click="open = !open" class="border rounded p-2 cursor-pointer bg-white hover:bg-cyan-50">
@@ -684,3 +659,4 @@ this.barChart = new Chart(ctx, {
 
 </body>
 </html>
+
