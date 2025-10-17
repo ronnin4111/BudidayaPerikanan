@@ -26,7 +26,6 @@
 <!-- Plugin Data Labels -->
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2"></script>
 
-
 </head>
 
 <body class="text-gray-800" x-data="cleanBlueApp()" x-init="init()">
@@ -122,6 +121,56 @@
                  :value="opt"
                  @change="toggleSelect('desa', opt)"
                  :checked="selected.desa.includes(opt)">
+          <span x-text="opt"></span>
+        </label>
+      </template>
+    </div>
+  </div>
+
+    <!-- Kelompok -->
+  <div x-data="{ open: false }">
+    <label class="block text-gray-600 mb-1">Kelompok</label>
+    <div @click="open = !open" class="border rounded p-2 cursor-pointer bg-white hover:bg-cyan-50">
+      <template x-if="selected.kelompok.length === 0">
+        <span class="text-gray-400">Pilih...</span>
+      </template>
+      <template x-if="selected.kelompok.length > 0">
+        <span class="text-cyan-700 font-medium" x-text="selected.kelompok.join(', ')"></span>
+      </template>
+    </div>
+    <div x-show="open" x-cloak @click.outside="open = false"
+         class="absolute z-10 bg-white border rounded shadow mt-1 w-full max-h-56 overflow-y-auto">
+      <template x-for="opt in filtersDef.kelompok.options" :key="opt">
+        <label class="flex items-center px-2 py-1 hover:bg-cyan-50 cursor-pointer">
+          <input type="checkbox" class="mr-2"
+                 :value="opt"
+                 @change="toggleSelect('kelompok', opt)"
+                 :checked="selected.kelompok.includes(opt)">
+          <span x-text="opt"></span>
+        </label>
+      </template>
+    </div>
+  </div>
+
+    <!-- Kelompok -->
+  <div x-data="{ open: false }">
+    <label class="block text-gray-600 mb-1">Kelompok</label>
+    <div @click="open = !open" class="border rounded p-2 cursor-pointer bg-white hover:bg-cyan-50">
+      <template x-if="selected.kelompok.length === 0">
+        <span class="text-gray-400">Pilih...</span>
+      </template>
+      <template x-if="selected.kelompok.length > 0">
+        <span class="text-cyan-700 font-medium" x-text="selected.kelompok.join(', ')"></span>
+      </template>
+    </div>
+    <div x-show="open" x-cloak @click.outside="open = false"
+         class="absolute z-10 bg-white border rounded shadow mt-1 w-full max-h-56 overflow-y-auto">
+      <template x-for="opt in filtersDef.kelompok.options" :key="opt">
+        <label class="flex items-center px-2 py-1 hover:bg-cyan-50 cursor-pointer">
+          <input type="checkbox" class="mr-2"
+                 :value="opt"
+                 @change="toggleSelect('kelompok', opt)"
+                 :checked="selected.kelompok.includes(opt)">
           <span x-text="opt"></span>
         </label>
       </template>
@@ -236,49 +285,52 @@
       <span class="text-sm text-gray-600">Total: <b x-text="filtered.length"></b> titik</span>
     </div>
 
-    <table class="min-w-full text-sm">
-  <thead class="bg-cyan-600 text-white">
-    <tr>
-      <th class="p-2 text-left">Nama</th>
-      <th class="p-2 text-left">Kelompok</th>
-      <th class="p-2 text-left">Kecamatan</th>
-      <th class="p-2 text-left">Desa</th>
-      <th class="p-2 text-left">Jenis Usaha</th>
-      <th class="p-2 text-left">Wadah</th>
-      <th class="p-2 text-left">Jenis Ikan</th>
-      <th class="p-2 text-right">Produksi (Kg)</th>
-      <th class="p-2 text-center">KUSUKA</th>
-      <th class="p-2 text-center">NIB</th>
-      <th class="p-2 text-center">CPIB</th>
-      <th class="p-2 text-center">CBIB</th>
-      <th class="p-2 text-right">Jumlah Kolam</th>
-      <th class="p-2 text-right">Luas Lahan (m²)</th>
-    </tr>
-  </thead>
-  <tbody>
-    <template x-for="(row,i) in filtered" :key="i">
-      <tr class="hover:bg-cyan-50">
-        <td class="p-2" x-text="row.nama"></td>
-        <td class="p-2" x-text="row.kelompok"></td>
-        <td class="p-2" x-text="row.kecamatan"></td>
-        <td class="p-2" x-text="row.desa"></td>
-        <td class="p-2" x-text="row.jenis_usaha"></td>
-        <td class="p-2" x-text="row.wadah_budidaya"></td>
-        <td class="p-2" x-text="row.jenis_ikan"></td>
-        <td class="p-2 text-right" x-text="(row.produksi||0).toLocaleString()"></td>
-        <td class="p-2 text-center" x-text="row.kusuka || '-'"></td>
-        <td class="p-2 text-center" x-text="row.nib ? '✅' : '-'"></td>
-        <td class="p-2 text-center" x-text="row.cpib ? '✅' : '-'"></td>
-        <td class="p-2 text-center" x-text="row.cbib ? '✅' : '-'"></td>
-        <td class="p-2 text-right" x-text="(row.kolam||0).toLocaleString()"></td>
-        <td class="p-2 text-right" x-text="(row.lahan||0).toLocaleString()"></td>
+<!-- Bungkus tabel biar bisa discroll -->
+<div class="overflow-auto" style="max-height: 450px; max-width: 100%;">
+  <table class="text-sm border-collapse table-auto w-max min-w-full">
+    <thead class="bg-cyan-600 text-white">
+      <tr>
+        <th class="p-2 text-left sticky top-0 left-0 bg-cyan-700 z-20 whitespace-nowrap">Nama</th>
+        <th class="p-2 text-left sticky top-0 bg-cyan-600 z-10 whitespace-nowrap">Kelompok</th>
+        <th class="p-2 text-left sticky top-0 bg-cyan-600 z-10 whitespace-nowrap">Kecamatan</th>
+        <th class="p-2 text-left sticky top-0 bg-cyan-600 z-10 whitespace-nowrap">Desa</th>
+        <th class="p-2 text-left sticky top-0 bg-cyan-600 z-10 whitespace-nowrap">Jenis Usaha</th>
+        <th class="p-2 text-left sticky top-0 bg-cyan-600 z-10 whitespace-nowrap">Wadah Budidaya</th>
+        <th class="p-2 text-left sticky top-0 bg-cyan-600 z-10 whitespace-nowrap">Jenis Ikan</th>
+        <th class="p-2 text-right sticky top-0 bg-cyan-600 z-10 whitespace-nowrap">Produksi (Kg)</th>
+        <th class="p-2 text-center sticky top-0 bg-cyan-600 z-10 whitespace-nowrap">KUSUKA</th>
+        <th class="p-2 text-center sticky top-0 bg-cyan-600 z-10 whitespace-nowrap">NIB</th>
+        <th class="p-2 text-center sticky top-0 bg-cyan-600 z-10 whitespace-nowrap">CPIB</th>
+        <th class="p-2 text-center sticky top-0 bg-cyan-600 z-10 whitespace-nowrap">CBIB</th>
+        <th class="p-2 text-right sticky top-0 bg-cyan-600 z-10 whitespace-nowrap">Jumlah Kolam</th>
+        <th class="p-2 text-right sticky top-0 bg-cyan-600 z-10 whitespace-nowrap">Luas Lahan (m²)</th>
       </tr>
-    </template>
-    <tr x-show="filtered.length===0">
-      <td colspan="14" class="text-center text-gray-500 p-4">Tidak ada data</td>
-    </tr>
-  </tbody>
-</table>
+    </thead>
+    <tbody>
+      <template x-for="(row, i) in filtered" :key="i">
+        <tr class="hover:bg-cyan-50">
+          <td class="p-2 sticky left-0 bg-white z-10 whitespace-nowrap" x-text="row.nama"></td>
+          <td class="p-2 whitespace-nowrap" x-text="row.kelompok"></td>
+          <td class="p-2 whitespace-nowrap" x-text="row.kecamatan"></td>
+          <td class="p-2 whitespace-nowrap" x-text="row.desa"></td>
+          <td class="p-2 whitespace-nowrap" x-text="row.jenis_usaha"></td>
+          <td class="p-2 whitespace-nowrap" x-text="row.wadah_budidaya"></td>
+          <td class="p-2 whitespace-nowrap" x-text="row.jenis_ikan"></td>
+          <td class="p-2 text-right whitespace-nowrap" x-text="(row.produksi || 0).toLocaleString()"></td>
+          <td class="p-2 text-center whitespace-nowrap" x-text="row.kusuka || '-'"></td>
+          <td class="p-2 text-center whitespace-nowrap" x-text="row.nib ? '✅' : '-'"></td>
+          <td class="p-2 text-center whitespace-nowrap" x-text="row.cpib ? '✅' : '-'"></td>
+          <td class="p-2 text-center whitespace-nowrap" x-text="row.cbib ? '✅' : '-'"></td>
+          <td class="p-2 text-right whitespace-nowrap" x-text="(row.kolam || 0).toLocaleString()"></td>
+          <td class="p-2 text-right whitespace-nowrap" x-text="(row.lahan || 0).toLocaleString()"></td>
+        </tr>
+      </template>
+      <tr x-show="filtered.length === 0">
+        <td colspan="14" class="text-center text-gray-500 p-4">Tidak ada data</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
 
   </main>
 </div>
@@ -304,13 +356,14 @@ return {
   ],
 
   filtersDef: {
-    kecamatan:{label:'Kecamatan',options:[]},
-    desa:{label:'Desa',options:[]},
-    jenis_usaha:{label:'Jenis Usaha',options:[]},
-    wadah_budidaya:{label:'Wadah Budidaya',options:[]},
-    jenis_ikan:{label:'Jenis Ikan',options:[]}
-  },
-  selected:{kecamatan:[],desa:[],jenis_usaha:[],wadah_budidaya:[],jenis_ikan:[]},
+  kecamatan:{label:'Kecamatan',options:[]},
+  desa:{label:'Desa',options:[]},
+  kelompok:{label:'Kelompok',options:[]},   // <== Tambahkan ini
+  jenis_usaha:{label:'Jenis Usaha',options:[]},
+  wadah_budidaya:{label:'Wadah Budidaya',options:[]},
+  jenis_ikan:{label:'Jenis Ikan',options:[]}
+},
+selected:{kecamatan:[],desa:[],kelompok:[],jenis_usaha:[],wadah_budidaya:[],jenis_ikan:[]},
 
   async init(){
     const res = await fetch(this.sheetURL);
@@ -394,6 +447,7 @@ return {
       filteredData=filteredData.filter(r=>this.selected.kecamatan.includes(r.kecamatan));
     this.filtersDef.kecamatan.options=uniq(this.rawData.map(r=>r.kecamatan));
     this.filtersDef.desa.options=uniq(filteredData.map(r=>r.desa));
+    this.filtersDef.kelompok.options=uniq(this.rawData.map(r=>r.kelompok));
     this.filtersDef.jenis_usaha.options=uniq(this.rawData.map(r=>r.jenis_usaha));
     this.filtersDef.wadah_budidaya.options=uniq(this.rawData.map(r=>r.wadah_budidaya));
     this.filtersDef.jenis_ikan.options=uniq(this.rawData.flatMap(r=>r.jenis_ikan.split(",").map(v=>v.trim())).filter(v=>v));
@@ -630,4 +684,3 @@ this.barChart = new Chart(ctx, {
 
 </body>
 </html>
-
