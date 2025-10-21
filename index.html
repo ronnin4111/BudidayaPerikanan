@@ -49,6 +49,34 @@
       }
     </style>
   </head>
+<script>
+(function(){
+  const PASSWORD = "Mempawah123"; // 🔑 ganti sesuai keinginan Bang
+  const KEY = "auth_ok_v1"; // nama key penyimpanan
+
+  // Cek apakah sudah login di sesi browser
+  if (!sessionStorage.getItem(KEY)) {
+    const input = prompt("Masukkan kata sandi untuk mengakses halaman ini:");
+
+    if (input !== PASSWORD) {
+      document.body.innerHTML = `
+        <div style="
+          font-family:sans-serif;
+          text-align:center;
+          margin-top:25vh;
+          color:#333;
+        ">
+          <h2>❌ Akses Ditolak</h2>
+          <p>Password salah. Silakan refresh untuk mencoba lagi.</p>
+        </div>`;
+      throw new Error("Unauthorized Access");
+    }
+
+    // Simpan status login agar gak muncul terus
+    sessionStorage.setItem(KEY, "true");
+  }
+})();
+</script>
 
   <body class="text-gray-800" x-data="cleanBlueApp()" x-init="init()">
     <!-- HEADER DENGAN JAM -->
