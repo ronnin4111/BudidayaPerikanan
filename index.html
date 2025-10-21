@@ -390,6 +390,18 @@
         </div>
 
         <div id="map"></div>
+        <div id="map"></div>
+
+<!-- 🗺️ Tombol Toggle Legend (khusus mobile) -->
+<button 
+  id="toggleLegendBtn"
+  class="fixed bottom-24 right-4 z-[1000] bg-cyan-600 text-white rounded-full w-11 h-11 flex items-center justify-center shadow-lg hover:bg-cyan-700 hover:scale-110 transition duration-300 md:hidden pointer-events-auto"
+  onclick="toggleLegend()"
+  title="Tampilkan / Sembunyikan legenda"
+>
+  🗺️
+</button>
+
 
         <div class="flex justify-between items-center mb-2">
           <h3 class="text-cyan-700 font-semibold text-lg">Data Pelaku Usaha</h3>
@@ -1342,7 +1354,24 @@ if (this.updateGeoFilter) {
         };
       } // end cleanBlueApp
     </script>
-  </body>
-</html>
+<script>
+  // === Fungsi Toggle Legend (khusus mobile) ===
+  function toggleLegend() {
+    const legend = document.querySelector(".leaflet-bottom.leaflet-right");
+    if (!legend) return;
+    const isHidden = legend.style.display === "none";
+    legend.style.display = isHidden ? "block" : "none";
+  }
 
+  // === Auto Sembunyikan Legend Saat di Mobile ===
+  window.addEventListener("load", () => {
+    const legend = document.querySelector(".leaflet-bottom.leaflet-right");
+    if (window.innerWidth < 768 && legend) {
+      legend.style.display = "none";
+    }
+  });
+</script>
+  
+</body>
+</html>
 
