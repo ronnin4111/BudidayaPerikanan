@@ -407,7 +407,7 @@
         <div class="flex justify-between items-center mb-2">
           <h3 class="text-cyan-700 font-semibold text-lg">Data Pelaku Usaha</h3>
           <span class="text-sm text-gray-600"
-            >Total: <b x-text="filtered.length"></b> titik</span
+            >Total: <b x-text="filtered.length"></b> Orang</span
           >
         </div>
 
@@ -1144,7 +1144,7 @@ if (this.updateGeoFilter) {
                 });
                 const displayType = type === "kecamatan" ? "Kecamatan" : "Desa";
                 l.bindPopup(
-                  `<b>${name}</b><br/>${displayType}<br/>Luas: ${readableArea} ha`
+                  `<b>${name}</b><br/>Luas Wilayah: ${readableArea} ha`
                 );
                 l.on("mouseover", () =>
                   l.setStyle({ weight: 2.5, fillOpacity: 0.25 })
