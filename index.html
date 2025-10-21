@@ -1,667 +1,1346 @@
 <!DOCTYPE html>
 <html lang="id">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>DATA PERIKANAN BUDIDAYA</title>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>DATA PERIKANAN BUDIDAYA</title>
 
-<!-- Tailwind -->
-<script src="https://cdn.tailwindcss.com"></script>
-<!-- AlpineJS -->
-<script src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
-<!-- Leaflet -->
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<!-- SheetJS untuk Excel -->
-<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <!-- Tailwind -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- AlpineJS -->
+    <script
+      src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"
+      defer
+    ></script>
+    <!-- Leaflet -->
+    <link
+      rel="stylesheet"
+      href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+    />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <!-- SheetJS untuk Excel -->
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Plugin Data Labels -->
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2"></script>
+    <!-- Turf.js for area calculations -->
+    <script src="https://cdn.jsdelivr.net/npm/@turf/turf@6/turf.min.js"></script>
 
-<style>
-  body { background: #f0f9ff; }
-  table th, table td { border: 1px solid #e2e8f0; }
-  [x-cloak] { display: none !important; }
-  #map { width: 100%; height: 400px; border-radius: 12px; margin-bottom: 1rem; }
-</style>
-<!-- Chart.js -->
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-<!-- Plugin Data Labels -->
-<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2"></script>
+    <style>
+      body {
+        background: #f0f9ff;
+      }
+      table th,
+      table td {
+        border: 1px solid #e2e8f0;
+      }
+      [x-cloak] {
+        display: none !important;
+      }
+      #map {
+        width: 100%;
+        height: 400px;
+        border-radius: 12px;
+        margin-bottom: 1rem;
+      }
+      .leaflet-popup-content-wrapper {
+        max-width: 240px;
+      }
+    </style>
+  </head>
 
+  <body class="text-gray-800" x-data="cleanBlueApp()" x-init="init()">
+    <!-- HEADER DENGAN JAM -->
+    <header
+      class="bg-cyan-600 text-white py-4 shadow-md flex flex-col md:flex-row items-center justify-between gap-2 px-4"
+    >
+      <div class="flex items-center gap-2">
+        <img src="logo.png" alt="Logo" class="h-14 md:h-[6.5rem] w-auto" />
+        <span
+          class="font-bold text-xl md:text-[2.1rem] text-center md:text-left leading-tight"
+        >
+          DATA PERIKANAN BUDIDAYA DPKPP KAB. MEMPAWAH
+        </span>
+      </div>
+      <div class="text-sm md:text-base flex items-center gap-1">
+    🕒 <span x-text="currentDate"></span> • <span x-text="currentTime"></span>
+  </div>
+    </header>
 
-</head>
-
-<body class="text-gray-800" x-data="cleanBlueApp()" x-init="init()">
-
-<header class="bg-cyan-600 text-white py-4 shadow-md flex items-center justify-center gap-4 px-4">
-  <img src="logo.png" alt="Logo" class="h-14 md:h-[6.5rem] w-auto">
-  <span class="font-bold text-xl md:text-[2.1rem] text-left leading-tight">DATA PERIKANAN BUDIDAYA DPKPP KAB. MEMPAWAH</span>
-</header>
-
-<div class="max-w-7xl mx-auto mt-6 px-4 grid grid-cols-1 md:grid-cols-4 gap-4">
-
-  <!-- SIDEBAR -->
-  <aside class="bg-white rounded-xl shadow p-4 space-y-5">
-    <h2 class="text-cyan-700 font-semibold text-lg mb-2">📊Statistik</h2>
-        
-    <!-- Statistik Box -->
-    <div class="grid grid-cols-1 gap-2 text-sm">
-      <template x-for="stat in stats" :key="stat.label">
-        <div class="flex justify-between border-b pb-1">
-          <span class="font-medium" x-text="stat.label"></span>
-          <span>
-            <b x-text="stat.value"></b>
-            <template x-if="stat.percent !== null">
-              <span class="text-gray-500 text-xs"> (<span x-text="stat.percent"></span>%)</span>
-            </template>
-          </span>
+    <div
+      class="max-w-7xl mx-auto mt-6 px-4 grid grid-cols-1 md:grid-cols-4 gap-4"
+    >
+      <!-- SIDEBAR -->
+      <aside class="bg-white rounded-xl shadow p-4 space-y-5">
+        <h2 class="text-cyan-700 font-semibold text-lg mb-2">📊Statistik</h2>
+        <div class="grid grid-cols-1 gap-2 text-sm">
+          <template x-for="stat in stats" :key="stat.label">
+            <div class="flex justify-between border-b pb-1">
+              <span class="font-medium" x-text="stat.label"></span>
+              <span>
+                <b x-text="stat.value"></b>
+                <template x-if="stat.percent !== null">
+                  <span class="text-gray-500 text-xs">
+                    (<span x-text="stat.percent"></span>%)</span
+                  >
+                </template>
+              </span>
+            </div>
+          </template>
         </div>
-      </template>
-    </div>
-<canvas id="barChart" class="mt-4"></canvas>
 
-<!-- Filter Chart -->
-<div class="mt-4 space-y-2">
-  <label class="block text-sm text-gray-600">Tampilkan Chart Berdasarkan:</label>
-  <select x-model="chartFilter" @change="updateStats" class="w-full border rounded p-2 text-sm">
-    <option value="">-- Semua Data --</option>
-    <option value="jenis_usaha">Jenis Usaha</option>
-    <option value="jenis_ikan">Jenis Ikan</option>
-    <option value="wadah_budidaya">Wadah Budidaya</option>
-  </select>
-</div>
+        <canvas id="barChart" class="mt-4"></canvas>
 
+        <div class="mt-4 space-y-2">
+          <label class="block text-sm text-gray-600"
+            >Tampilkan Chart Berdasarkan:</label
+          >
+          <select
+            x-model="chartFilter"
+            @change="updateStats"
+            class="w-full border rounded p-2 text-sm"
+          >
+            <option value="">-- Semua Data --</option>
+            <option value="jenis_usaha">Jenis Usaha</option>
+            <option value="jenis_ikan">Jenis Ikan</option>
+            <option value="wadah_budidaya">Wadah Budidaya</option>
+          </select>
+        </div>
 
-    <hr class="my-3">
+        <hr class="my-3" />
 
-        <!-- Filter Dropdown -->
-    <h2 class="text-cyan-700 font-semibold text-lg mb-2">🔍 Filter Utama</h2>
+        <h2 class="text-cyan-700 font-semibold text-lg mb-2">
+          🔍 Filter Utama
+        </h2>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
+          <div x-data="{ open: false }">
+            <label class="block text-gray-600 mb-1">Kecamatan</label>
+            <div
+              @click="open = !open"
+              class="border rounded p-2 cursor-pointer bg-white hover:bg-cyan-50"
+            >
+              <template x-if="selected.kecamatan.length === 0">
+                <span class="text-gray-400">Pilih...</span>
+              </template>
+              <template x-if="selected.kecamatan.length > 0">
+                <span
+                  class="text-cyan-700 font-medium"
+                  x-text="selected.kecamatan.join(', ')"
+                ></span>
+              </template>
+            </div>
+            <div
+              x-show="open"
+              x-cloak
+              @click.outside="open = false"
+              class="absolute z-10 bg-white border rounded shadow mt-1 w-full max-h-56 overflow-y-auto"
+            >
+              <template x-for="opt in filtersDef.kecamatan.options" :key="opt">
+                <label
+                  class="flex items-center px-2 py-1 hover:bg-cyan-50 cursor-pointer"
+                >
+                  <input
+                    type="checkbox"
+                    class="mr-2"
+                    :value="opt"
+                    @change="toggleSelect('kecamatan', opt)"
+                    :checked="selected.kecamatan.includes(opt)"
+                  />
+                  <span x-text="opt"></span>
+                </label>
+              </template>
+            </div>
+          </div>
 
+          <div x-data="{ open: false }">
+            <label class="block text-gray-600 mb-1">Desa</label>
+            <div
+              @click="open = !open"
+              class="border rounded p-2 cursor-pointer bg-white hover:bg-cyan-50"
+            >
+              <template x-if="selected.desa.length === 0">
+                <span class="text-gray-400">Pilih...</span>
+              </template>
+              <template x-if="selected.desa.length > 0">
+                <span
+                  class="text-cyan-700 font-medium"
+                  x-text="selected.desa.join(', ')"
+                ></span>
+              </template>
+            </div>
+            <div
+              x-show="open"
+              x-cloak
+              @click.outside="open = false"
+              class="absolute z-10 bg-white border rounded shadow mt-1 w-full max-h-56 overflow-y-auto"
+            >
+              <template x-for="opt in filtersDef.desa.options" :key="opt">
+                <label
+                  class="flex items-center px-2 py-1 hover:bg-cyan-50 cursor-pointer"
+                >
+                  <input
+                    type="checkbox"
+                    class="mr-2"
+                    :value="opt"
+                    @change="toggleSelect('desa', opt)"
+                    :checked="selected.desa.includes(opt)"
+                  />
+                  <span x-text="opt"></span>
+                </label>
+              </template>
+            </div>
+          </div>
 
-<div class="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
-  <!-- Kecamatan -->
-  <div x-data="{ open: false }">
-    <label class="block text-gray-600 mb-1">Kecamatan</label>
-    <div @click="open = !open" class="border rounded p-2 cursor-pointer bg-white hover:bg-cyan-50">
-      <template x-if="selected.kecamatan.length === 0">
-        <span class="text-gray-400">Pilih...</span>
-      </template>
-      <template x-if="selected.kecamatan.length > 0">
-        <span class="text-cyan-700 font-medium" x-text="selected.kecamatan.join(', ')"></span>
-      </template>
-    </div>
-    <div x-show="open" x-cloak @click.outside="open = false"
-         class="absolute z-10 bg-white border rounded shadow mt-1 w-full max-h-56 overflow-y-auto">
-      <template x-for="opt in filtersDef.kecamatan.options" :key="opt">
-        <label class="flex items-center px-2 py-1 hover:bg-cyan-50 cursor-pointer">
-          <input type="checkbox" class="mr-2"
-                 :value="opt"
-                 @change="toggleSelect('kecamatan', opt)"
-                 :checked="selected.kecamatan.includes(opt)">
-          <span x-text="opt"></span>
-        </label>
-      </template>
-    </div>
-  </div>
+          <div x-data="{ open: false }">
+            <label class="block text-gray-600 mb-1">Kelompok</label>
+            <div
+              @click="open = !open"
+              class="border rounded p-2 cursor-pointer bg-white hover:bg-cyan-50"
+            >
+              <template x-if="selected.kelompok.length === 0">
+                <span class="text-gray-400">Pilih...</span>
+              </template>
+              <template x-if="selected.kelompok.length > 0">
+                <span
+                  class="text-cyan-700 font-medium"
+                  x-text="selected.kelompok.join(', ')"
+                ></span>
+              </template>
+            </div>
+            <div
+              x-show="open"
+              x-cloak
+              @click.outside="open = false"
+              class="absolute z-10 bg-white border rounded shadow mt-1 w-full max-h-56 overflow-y-auto"
+            >
+              <template x-for="opt in filtersDef.kelompok.options" :key="opt">
+                <label
+                  class="flex items-center px-2 py-1 hover:bg-cyan-50 cursor-pointer"
+                >
+                  <input
+                    type="checkbox"
+                    class="mr-2"
+                    :value="opt"
+                    @change="toggleSelect('kelompok', opt)"
+                    :checked="selected.kelompok.includes(opt)"
+                  />
+                  <span x-text="opt"></span>
+                </label>
+              </template>
+            </div>
+          </div>
 
-  <!-- Desa -->
-  <div x-data="{ open: false }">
-    <label class="block text-gray-600 mb-1">Desa</label>
-    <div @click="open = !open" class="border rounded p-2 cursor-pointer bg-white hover:bg-cyan-50">
-      <template x-if="selected.desa.length === 0">
-        <span class="text-gray-400">Pilih...</span>
-      </template>
-      <template x-if="selected.desa.length > 0">
-        <span class="text-cyan-700 font-medium" x-text="selected.desa.join(', ')"></span>
-      </template>
-    </div>
-    <div x-show="open" x-cloak @click.outside="open = false"
-         class="absolute z-10 bg-white border rounded shadow mt-1 w-full max-h-56 overflow-y-auto">
-      <template x-for="opt in filtersDef.desa.options" :key="opt">
-        <label class="flex items-center px-2 py-1 hover:bg-cyan-50 cursor-pointer">
-          <input type="checkbox" class="mr-2"
-                 :value="opt"
-                 @change="toggleSelect('desa', opt)"
-                 :checked="selected.desa.includes(opt)">
-          <span x-text="opt"></span>
-        </label>
-      </template>
-    </div>
-  </div>
+          <div x-data="{ open: false }">
+            <label class="block text-gray-600 mb-1">Jenis Usaha</label>
+            <div
+              @click="open = !open"
+              class="border rounded p-2 cursor-pointer bg-white hover:bg-cyan-50"
+            >
+              <template x-if="selected.jenis_usaha.length === 0">
+                <span class="text-gray-400">Pilih...</span>
+              </template>
+              <template x-if="selected.jenis_usaha.length > 0">
+                <span
+                  class="text-cyan-700 font-medium"
+                  x-text="selected.jenis_usaha.join(', ')"
+                ></span>
+              </template>
+            </div>
+            <div
+              x-show="open"
+              x-cloak
+              @click.outside="open = false"
+              class="absolute z-10 bg-white border rounded shadow mt-1 w-full max-h-56 overflow-y-auto"
+            >
+              <template
+                x-for="opt in filtersDef.jenis_usaha.options"
+                :key="opt"
+              >
+                <label
+                  class="flex items-center px-2 py-1 hover:bg-cyan-50 cursor-pointer"
+                >
+                  <input
+                    type="checkbox"
+                    class="mr-2"
+                    :value="opt"
+                    @change="toggleSelect('jenis_usaha', opt)"
+                    :checked="selected.jenis_usaha.includes(opt)"
+                  />
+                  <span x-text="opt"></span>
+                </label>
+              </template>
+            </div>
+          </div>
 
-    <!-- Kelompok -->
-  <div x-data="{ open: false }">
-    <label class="block text-gray-600 mb-1">Kelompok</label>
-    <div @click="open = !open" class="border rounded p-2 cursor-pointer bg-white hover:bg-cyan-50">
-      <template x-if="selected.kelompok.length === 0">
-        <span class="text-gray-400">Pilih...</span>
-      </template>
-      <template x-if="selected.kelompok.length > 0">
-        <span class="text-cyan-700 font-medium" x-text="selected.kelompok.join(', ')"></span>
-      </template>
-    </div>
-    <div x-show="open" x-cloak @click.outside="open = false"
-         class="absolute z-10 bg-white border rounded shadow mt-1 w-full max-h-56 overflow-y-auto">
-      <template x-for="opt in filtersDef.kelompok.options" :key="opt">
-        <label class="flex items-center px-2 py-1 hover:bg-cyan-50 cursor-pointer">
-          <input type="checkbox" class="mr-2"
-                 :value="opt"
-                 @change="toggleSelect('kelompok', opt)"
-                 :checked="selected.kelompok.includes(opt)">
-          <span x-text="opt"></span>
-        </label>
-      </template>
-    </div>
-  </div>
+          <div x-data="{ open: false }">
+            <label class="block text-gray-600 mb-1">Wadah Budidaya</label>
+            <div
+              @click="open = !open"
+              class="border rounded p-2 cursor-pointer bg-white hover:bg-cyan-50"
+            >
+              <template x-if="selected.wadah_budidaya.length === 0">
+                <span class="text-gray-400">Pilih...</span>
+              </template>
+              <template x-if="selected.wadah_budidaya.length > 0">
+                <span
+                  class="text-cyan-700 font-medium"
+                  x-text="selected.wadah_budidaya.join(', ')"
+                ></span>
+              </template>
+            </div>
+            <div
+              x-show="open"
+              x-cloak
+              @click.outside="open = false"
+              class="absolute z-10 bg-white border rounded shadow mt-1 w-full max-h-56 overflow-y-auto"
+            >
+              <template
+                x-for="opt in filtersDef.wadah_budidaya.options"
+                :key="opt"
+              >
+                <label
+                  class="flex items-center px-2 py-1 hover:bg-cyan-50 cursor-pointer"
+                >
+                  <input
+                    type="checkbox"
+                    class="mr-2"
+                    :value="opt"
+                    @change="toggleSelect('wadah_budidaya', opt)"
+                    :checked="selected.wadah_budidaya.includes(opt)"
+                  />
+                  <span x-text="opt"></span>
+                </label>
+              </template>
+            </div>
+          </div>
 
-    
-  <!-- Jenis Usaha -->
-  <div x-data="{ open: false }">
-    <label class="block text-gray-600 mb-1">Jenis Usaha</label>
-    <div @click="open = !open" class="border rounded p-2 cursor-pointer bg-white hover:bg-cyan-50">
-      <template x-if="selected.jenis_usaha.length === 0">
-        <span class="text-gray-400">Pilih...</span>
-      </template>
-      <template x-if="selected.jenis_usaha.length > 0">
-        <span class="text-cyan-700 font-medium" x-text="selected.jenis_usaha.join(', ')"></span>
-      </template>
-    </div>
-    <div x-show="open" x-cloak @click.outside="open = false"
-         class="absolute z-10 bg-white border rounded shadow mt-1 w-full max-h-56 overflow-y-auto">
-      <template x-for="opt in filtersDef.jenis_usaha.options" :key="opt">
-        <label class="flex items-center px-2 py-1 hover:bg-cyan-50 cursor-pointer">
-          <input type="checkbox" class="mr-2"
-                 :value="opt"
-                 @change="toggleSelect('jenis_usaha', opt)"
-                 :checked="selected.jenis_usaha.includes(opt)">
-          <span x-text="opt"></span>
-        </label>
-      </template>
-    </div>
-  </div>
+          <div class="sm:col-span-1" x-data="{ open: false }">
+            <label class="block text-gray-600 mb-1">Jenis Ikan</label>
+            <div
+              @click="open = !open"
+              class="border rounded p-2 cursor-pointer bg-white hover:bg-cyan-50"
+            >
+              <template x-if="selected.jenis_ikan.length === 0">
+                <span class="text-gray-400">Pilih...</span>
+              </template>
+              <template x-if="selected.jenis_ikan.length > 0">
+                <span
+                  class="text-cyan-700 font-medium"
+                  x-text="selected.jenis_ikan.join(', ')"
+                ></span>
+              </template>
+            </div>
+            <div
+              x-show="open"
+              x-cloak
+              @click.outside="open = false"
+              class="absolute z-10 bg-white border rounded shadow mt-1 w-full max-h-56 overflow-y-auto"
+            >
+              <template x-for="opt in filtersDef.jenis_ikan.options" :key="opt">
+                <label
+                  class="flex items-center px-2 py-1 hover:bg-cyan-50 cursor-pointer"
+                >
+                  <input
+                    type="checkbox"
+                    class="mr-2"
+                    :value="opt"
+                    @change="toggleSelect('jenis_ikan', opt)"
+                    :checked="selected.jenis_ikan.includes(opt)"
+                  />
+                  <span x-text="opt"></span>
+                </label>
+              </template>
+            </div>
+          </div>
 
-  <!-- Wadah Budidaya -->
-  <div x-data="{ open: false }">
-    <label class="block text-gray-600 mb-1">Wadah Budidaya</label>
-    <div @click="open = !open" class="border rounded p-2 cursor-pointer bg-white hover:bg-cyan-50">
-      <template x-if="selected.wadah_budidaya.length === 0">
-        <span class="text-gray-400">Pilih...</span>
-      </template>
-      <template x-if="selected.wadah_budidaya.length > 0">
-        <span class="text-cyan-700 font-medium" x-text="selected.wadah_budidaya.join(', ')"></span>
-      </template>
-    </div>
-    <div x-show="open" x-cloak @click.outside="open = false"
-         class="absolute z-10 bg-white border rounded shadow mt-1 w-full max-h-56 overflow-y-auto">
-      <template x-for="opt in filtersDef.wadah_budidaya.options" :key="opt">
-        <label class="flex items-center px-2 py-1 hover:bg-cyan-50 cursor-pointer">
-          <input type="checkbox" class="mr-2"
-                 :value="opt"
-                 @change="toggleSelect('wadah_budidaya', opt)"
-                 :checked="selected.wadah_budidaya.includes(opt)">
-          <span x-text="opt"></span>
-        </label>
-      </template>
-    </div>
-  </div>
-
-  <!-- Jenis Ikan (diletakkan sendiri agar bisa sejajar dengan tombol reset) -->
-  <div class="sm:col-span-1" x-data="{ open: false }">
-    <label class="block text-gray-600 mb-1">Jenis Ikan</label>
-    <div @click="open = !open" class="border rounded p-2 cursor-pointer bg-white hover:bg-cyan-50">
-      <template x-if="selected.jenis_ikan.length === 0">
-        <span class="text-gray-400">Pilih...</span>
-      </template>
-      <template x-if="selected.jenis_ikan.length > 0">
-        <span class="text-cyan-700 font-medium" x-text="selected.jenis_ikan.join(', ')"></span>
-      </template>
-    </div>
-    <div x-show="open" x-cloak @click.outside="open = false"
-         class="absolute z-10 bg-white border rounded shadow mt-1 w-full max-h-56 overflow-y-auto">
-      <template x-for="opt in filtersDef.jenis_ikan.options" :key="opt">
-        <label class="flex items-center px-2 py-1 hover:bg-cyan-50 cursor-pointer">
-          <input type="checkbox" class="mr-2"
-                 :value="opt"
-                 @change="toggleSelect('jenis_ikan', opt)"
-                 :checked="selected.jenis_ikan.includes(opt)">
-          <span x-text="opt"></span>
-        </label>
-      </template>
-    </div>
-  </div>
-
-  <!-- Tombol Reset Filter -->
-  <div class="flex items-end sm:justify-end">
-    <button @click="resetFilters" class="w-full sm:w-auto mt-1 bg-gray-200 rounded py-2 px-4 hover:bg-gray-300 text-sm">
-      🔄 Reset Filter
-    </button>
-  </div>
-</div>
-
-
+          <div class="flex items-end sm:justify-end">
+            <button
+              @click="resetFilters"
+              class="w-full sm:w-auto mt-1 bg-gray-200 rounded py-2 px-4 hover:bg-gray-300 text-sm"
+            >
+              🔄 Reset Filter
+            </button>
+          </div>
+        </div>
+        
       </aside>
 
-  <!-- MAIN -->
-  <main class="md:col-span-3 bg-white rounded-xl shadow p-4 overflow-x-auto pb-20">
+      <!-- MAIN -->
+      <main
+        class="md:col-span-3 bg-white rounded-xl shadow p-4 overflow-x-auto pb-20"
+      >
+        <div
+          class="flex flex-col md:flex-row md:items-center md:justify-between mb-3 gap-3"
+        >
+          <input
+            type="text"
+            placeholder="🔍 Cari nama, kelompok, desa..."
+            class="border rounded-lg p-2 text-sm w-64 focus:outline-none focus:ring focus:ring-cyan-300"
+            x-model="searchQuery"
+            @input="applyFilters"
+          />
 
-    
-    <div class="flex flex-col md:flex-row md:items-center md:justify-between mb-3 gap-3">
-      <input type="text" placeholder="🔍 Cari nama, kelompok, desa..." 
-             class="border rounded-lg p-2 text-sm w-64 focus:outline-none focus:ring focus:ring-cyan-300"
-             x-model="searchQuery" @input="applyFilters">
+          <button
+            @click="downloadExcel"
+            class="bg-cyan-600 text-white px-3 py-2 rounded-lg text-sm hover:bg-cyan-700 transition"
+          >
+            💾 Download Excel
+          </button>
+        </div>
 
-      <button @click="downloadExcel"
-              class="bg-cyan-600 text-white px-3 py-2 rounded-lg text-sm hover:bg-cyan-700 transition">
-        💾 Download Excel
-      </button>
+        <div id="map"></div>
+
+        <div class="flex justify-between items-center mb-2">
+          <h3 class="text-cyan-700 font-semibold text-lg">Data Pelaku Usaha</h3>
+          <span class="text-sm text-gray-600"
+            >Total: <b x-text="filtered.length"></b> titik</span
+          >
+        </div>
+
+        <div class="overflow-auto" style="max-height: 450px; max-width: 100%">
+          <table class="text-sm border-collapse table-auto w-max min-w-full">
+            <thead class="bg-cyan-600 text-white">
+              <tr>
+                <th
+                  class="p-2 text-left sticky top-0 bg-cyan-600 z-10 whitespace-nowrap"
+                >
+                  Nama
+                </th>
+                <th
+                  class="p-2 text-left sticky top-0 bg-cyan-600 z-10 whitespace-nowrap"
+                >
+                  Kelompok
+                </th>
+                <th
+                  class="p-2 text-left sticky top-0 bg-cyan-600 z-10 whitespace-nowrap"
+                >
+                  Kecamatan
+                </th>
+                <th
+                  class="p-2 text-left sticky top-0 bg-cyan-600 z-10 whitespace-nowrap"
+                >
+                  Desa
+                </th>
+                <th
+                  class="p-2 text-left sticky top-0 bg-cyan-600 z-10 whitespace-nowrap"
+                >
+                  Jenis Usaha
+                </th>
+                <th
+                  class="p-2 text-left sticky top-0 bg-cyan-600 z-10 whitespace-nowrap"
+                >
+                  Wadah Budidaya
+                </th>
+                <th
+                  class="p-2 text-left sticky top-0 bg-cyan-600 z-10 whitespace-nowrap"
+                >
+                  Jenis Ikan
+                </th>
+                <th
+                  class="p-2 text-right sticky top-0 bg-cyan-600 z-10 whitespace-nowrap"
+                >
+                  Produksi (Kg)
+                </th>
+                <th
+                  class="p-2 text-center sticky top-0 bg-cyan-600 z-10 whitespace-nowrap"
+                >
+                  KUSUKA
+                </th>
+                <th
+                  class="p-2 text-center sticky top-0 bg-cyan-600 z-10 whitespace-nowrap"
+                >
+                  NIB
+                </th>
+                <th
+                  class="p-2 text-center sticky top-0 bg-cyan-600 z-10 whitespace-nowrap"
+                >
+                  CPIB
+                </th>
+                <th
+                  class="p-2 text-center sticky top-0 bg-cyan-600 z-10 whitespace-nowrap"
+                >
+                  CBIB
+                </th>
+                <th
+                  class="p-2 text-right sticky top-0 bg-cyan-600 z-10 whitespace-nowrap"
+                >
+                  Jumlah Kolam
+                </th>
+                <th
+                  class="p-2 text-right sticky top-0 bg-cyan-600 z-10 whitespace-nowrap"
+                >
+                  Luas Lahan (m²)
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              <template x-for="(row, i) in filtered" :key="i">
+                <tr class="hover:bg-cyan-50">
+                  <td class="p-2 whitespace-nowrap" x-text="row.nama"></td>
+                  <td class="p-2 whitespace-nowrap" x-text="row.kelompok"></td>
+                  <td class="p-2 whitespace-nowrap" x-text="row.kecamatan"></td>
+                  <td class="p-2 whitespace-nowrap" x-text="row.desa"></td>
+                  <td
+                    class="p-2 whitespace-nowrap"
+                    x-text="row.jenis_usaha"
+                  ></td>
+                  <td
+                    class="p-2 whitespace-nowrap"
+                    x-text="row.wadah_budidaya"
+                  ></td>
+                  <td
+                    class="p-2 whitespace-nowrap"
+                    x-text="row.jenis_ikan"
+                  ></td>
+                  <td
+                    class="p-2 text-right whitespace-nowrap"
+                    x-text="(row.produksi || 0).toLocaleString()"
+                  ></td>
+                  <td
+                    class="p-2 text-center whitespace-nowrap"
+                    x-text="row.kusuka || '-'"
+                  ></td>
+                  <td
+                    class="p-2 text-center whitespace-nowrap"
+                    x-text="row.nib ? '✅' : '-'"
+                  ></td>
+                  <td
+                    class="p-2 text-center whitespace-nowrap"
+                    x-text="row.cpib ? '✅' : '-'"
+                  ></td>
+                  <td
+                    class="p-2 text-center whitespace-nowrap"
+                    x-text="row.cbib ? '✅' : '-'"
+                  ></td>
+                  <td
+                    class="p-2 text-right whitespace-nowrap"
+                    x-text="(row.kolam || 0).toLocaleString()"
+                  ></td>
+                  <td
+                    class="p-2 text-right whitespace-nowrap"
+                    x-text="(row.lahan || 0).toLocaleString()"
+                  ></td>
+                </tr>
+              </template>
+              <tr x-show="filtered.length === 0">
+                <td colspan="14" class="text-center text-gray-500 p-4">
+                  Tidak ada data
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </main>
     </div>
+    <footer class="text-center py-4 text-sm text-gray-500">
+      © 2025 PERIKANAN BUDIDAYA — Dinas Pertanian Ketahanan Pangan dan Perikanan
+      Kabupaten Mempawah
+    </footer>
 
-    <div id="map"></div>
+    <script>
+      function cleanBlueApp() {
+        return {
+          currentDate: "",
+          currentTime: '',
+          chartFilter: "", // filter khusus untuk chart
 
-    <div class="flex justify-between items-center mb-2">
-      <h3 class="text-cyan-700 font-semibold text-lg">Data Pelaku Usaha</h3>
-      <span class="text-sm text-gray-600">Total: <b x-text="filtered.length"></b> titik</span>
-    </div>
+          sheetURL:
+            "https://docs.google.com/spreadsheets/d/1WvFGRiuiJiGGdhLp1EqtKPhqHi7yNn8UipH_VRK-zFo/gviz/tq?tqx=out:json",
+          rawData: [],
+          filtered: [],
+          searchQuery: "",
+          map: null,
+          markers: [],
+          totalCount: 0,
+          stats: [
+            { label: "Kusuka", value: 0, percent: 0 },
+            { label: "NIB", value: 0, percent: 0 },
+            { label: "CPIB", value: 0, percent: 0 },
+            { label: "CBIB", value: 0, percent: 0 },
+            { label: "Kusuka Kelompok", value: 0, percent: null },
+            { label: "Jumlah Kelompok", value: 0, percent: null },
+            { label: "Jumlah Kolam", value: 0, percent: null },
+            { label: "Luas Lahan (m²)", value: 0, percent: null },
+            { label: "Produksi (Kg)", value: 0, percent: null },
+          ],
 
-<!-- Bungkus tabel biar bisa discroll -->
-<div class="overflow-auto" style="max-height: 450px; max-width: 100%;">
-  <table class="text-sm border-collapse table-auto w-max min-w-full">
-    <thead class="bg-cyan-600 text-white">
-      <tr>
-        <th class="p-2 text-left sticky top-0 bg-cyan-600 z-10 whitespace-nowrap">Nama</th>
-        <th class="p-2 text-left sticky top-0 bg-cyan-600 z-10 whitespace-nowrap">Kelompok</th>
-        <th class="p-2 text-left sticky top-0 bg-cyan-600 z-10 whitespace-nowrap">Kecamatan</th>
-        <th class="p-2 text-left sticky top-0 bg-cyan-600 z-10 whitespace-nowrap">Desa</th>
-        <th class="p-2 text-left sticky top-0 bg-cyan-600 z-10 whitespace-nowrap">Jenis Usaha</th>
-        <th class="p-2 text-left sticky top-0 bg-cyan-600 z-10 whitespace-nowrap">Wadah Budidaya</th>
-        <th class="p-2 text-left sticky top-0 bg-cyan-600 z-10 whitespace-nowrap">Jenis Ikan</th>
-        <th class="p-2 text-right sticky top-0 bg-cyan-600 z-10 whitespace-nowrap">Produksi (Kg)</th>
-        <th class="p-2 text-center sticky top-0 bg-cyan-600 z-10 whitespace-nowrap">KUSUKA</th>
-        <th class="p-2 text-center sticky top-0 bg-cyan-600 z-10 whitespace-nowrap">NIB</th>
-        <th class="p-2 text-center sticky top-0 bg-cyan-600 z-10 whitespace-nowrap">CPIB</th>
-        <th class="p-2 text-center sticky top-0 bg-cyan-600 z-10 whitespace-nowrap">CBIB</th>
-        <th class="p-2 text-right sticky top-0 bg-cyan-600 z-10 whitespace-nowrap">Jumlah Kolam</th>
-        <th class="p-2 text-right sticky top-0 bg-cyan-600 z-10 whitespace-nowrap">Luas Lahan (m²)</th>
-      </tr>
-    </thead>
-    <tbody>
-      <template x-for="(row, i) in filtered" :key="i">
-        <tr class="hover:bg-cyan-50">
-          <td class="p-2 whitespace-nowrap" x-text="row.nama"></td>
-          <td class="p-2 whitespace-nowrap" x-text="row.kelompok"></td>
-          <td class="p-2 whitespace-nowrap" x-text="row.kecamatan"></td>
-          <td class="p-2 whitespace-nowrap" x-text="row.desa"></td>
-          <td class="p-2 whitespace-nowrap" x-text="row.jenis_usaha"></td>
-          <td class="p-2 whitespace-nowrap" x-text="row.wadah_budidaya"></td>
-          <td class="p-2 whitespace-nowrap" x-text="row.jenis_ikan"></td>
-          <td class="p-2 text-right whitespace-nowrap" x-text="(row.produksi || 0).toLocaleString()"></td>
-          <td class="p-2 text-center whitespace-nowrap" x-text="row.kusuka || '-'"></td>
-          <td class="p-2 text-center whitespace-nowrap" x-text="row.nib ? '✅' : '-'"></td>
-          <td class="p-2 text-center whitespace-nowrap" x-text="row.cpib ? '✅' : '-'"></td>
-          <td class="p-2 text-center whitespace-nowrap" x-text="row.cbib ? '✅' : '-'"></td>
-          <td class="p-2 text-right whitespace-nowrap" x-text="(row.kolam || 0).toLocaleString()"></td>
-          <td class="p-2 text-right whitespace-nowrap" x-text="(row.lahan || 0).toLocaleString()"></td>
-        </tr>
-      </template>
-      <tr x-show="filtered.length === 0">
-        <td colspan="14" class="text-center text-gray-500 p-4">Tidak ada data</td>
-      </tr>
-    </tbody>
-  </table>
-</div>
+          filtersDef: {
+            kecamatan: { label: "Kecamatan", options: [] },
+            desa: { label: "Desa", options: [] },
+            kelompok: { label: "Kelompok", options: [] }, // <== Tambahkan ini
+            jenis_usaha: { label: "Jenis Usaha", options: [] },
+            wadah_budidaya: { label: "Wadah Budidaya", options: [] },
+            jenis_ikan: { label: "Jenis Ikan", options: [] },
+          },
+          selected: {
+            kecamatan: [],
+            desa: [],
+            kelompok: [],
+            jenis_usaha: [],
+            wadah_budidaya: [],
+            jenis_ikan: [],
+          },
 
-  </main>
-</div>
-<!-- FOOTER -->
-  <footer class="text-center py-4 text-sm text-gray-500">
-    © 2025 PERIKANAN BUDIDAYA — Dinas Pertanian Ketahanan Pangan dan Perikanan Kabupaten Mempawah
-  </footer>
-<script>
-function cleanBlueApp(){
-return {
-  chartFilter: "", // filter khusus untuk chart
+          // === GEOJSON PATCH VARIABLES ===
+          geoFiles: [
+            { file: null, name: null },
 
-  sheetURL: "https://docs.google.com/spreadsheets/d/1WvFGRiuiJiGGdhLp1EqtKPhqHi7yNn8UipH_VRK-zFo/gviz/tq?tqx=out:json",
-  rawData: [], filtered: [], searchQuery: "", map: null, markers: [],
-  totalCount: 0,
-  stats: [
-    {label:"Kusuka", value:0, percent:0},
-    {label:"NIB", value:0, percent:0},
-    {label:"CPIB", value:0, percent:0},
-    {label:"CBIB", value:0, percent:0},
-    {label:"Kusuka Kelompok", value:0, percent:null},
-    {label:"Jumlah Kelompok", value:0, percent:null},
-    {label:"Jumlah Kolam", value:0, percent:null},
-    {label:"Luas Lahan (m²)", value:0, percent:null},
-    {label:"Produksi (Kg)", value:0, percent:null}
-  ],
+            { file: null, name: null },
+          ], // will be replaced by filenames list
+          geoFileNames: [
+            "id6104080_jongkat.geojson",
+            "id6104081_segedong.geojson",
+            "id6104090_sungai_pinyuh.geojson",
+            "id6104091_anjongan.geojson",
+            "id6104100_mempawah_hilir.geojson",
+            "id6104101_mempawah_timur.geojson",
+            "id6104110_sungai_kunyit.geojson",
+            "id6104120_toho.geojson",
+            "id6104121_sadaniang.geojson",
+          ],
+          geoLayers: { kecamatan: null, desa: null },
+          layerColors: { kecamatan: {}, desa: {} },
+          layerVisible: { kecamatan: false, desa: false },
+          _legendControl: null,
 
-  filtersDef: {
-  kecamatan:{label:'Kecamatan',options:[]},
-  desa:{label:'Desa',options:[]},
-  kelompok:{label:'Kelompok',options:[]},   // <== Tambahkan ini
-  jenis_usaha:{label:'Jenis Usaha',options:[]},
-  wadah_budidaya:{label:'Wadah Budidaya',options:[]},
-  jenis_ikan:{label:'Jenis Ikan',options:[]}
-},
-selected:{kecamatan:[],desa:[],kelompok:[],jenis_usaha:[],wadah_budidaya:[],jenis_ikan:[]},
-
-  async init(){
-    const res = await fetch(this.sheetURL);
-    const text = await res.text();
-    const json = JSON.parse(text.match(/setResponse\(([\s\S]*)\);/)[1]);
-    const cols = json.table.cols.map(c=>(c.label||"").trim());
-    const rows = json.table.rows.map(r=>{
-      const obj={};
-      (r.c||[]).forEach((c,i)=>obj[cols[i]]=c?(c.v!==undefined?c.v:(c.f||'')):'');
-      return obj;
-    });
-
-    this.rawData = rows.map(r=>({
-      nama: r["NAMA PELAKU USAHA"]||"",
-      kelompok: r["KELOMPOK"]||r["NAMA KELOMPOK"]||"",
-      kecamatan: r["KECAMATAN"]||"",
-      desa: r["LOKASI USAHA (DESA)"]||"",
-      jenis_usaha: r["JENIS USAHA"]||"",
-      wadah_budidaya: r["WADAH BUDIDAYA"]||"",
-      jenis_ikan: [r["JENIS IKAN UTAMA"],r["JENIS IKAN TAMBAHAN 1"],r["JENIS IKAN TAMBAHAN 2"]].filter(v=>v&&v.trim()!=="").join(", "),
-      kolam: parseFloat(r["JUMLAH KOLAM"]||r["P"]||0)||0,
-      lahan: parseFloat(r["LUAS LAHAN (m2)"]||r["Q"]||0)||0,
-      produksi: parseFloat((r["PRODUKSI (Kg)"]||r["U"]||"0").toString().replace(/,/g,''))||0,
-      kusuka: parseInt(r["KUSUKA"]||r["W"]||0),
-      nib: parseInt(r["NIB"]||r["X"]||0),
-      cpib: r["CPIB"] || r["Y"] || '',  // simpan apa adanya sebagai string
-      cbib: parseInt(r["CBIB"]||r["Z"]||0),
-      kusuka_kelompok: parseInt(r["KUSUKA KELOMPOK"]||r["AA"]||0),
-      lat: parseFloat(r["LAT"]||r["LATITUDE"]||""),
-      lng: parseFloat(r["LONG"]||r["LONGITUDE"]||"")
-    }));
-
-    this.totalCount = this.rawData.length;
-    this.updateFilterOptions();
-    this.applyFilters();
-    this.updateJumlahKelompok();
-    this.initMap();
-  },
-
-  initMap(){
-    this.map = L.map('map').setView([-3.8,114.8],9);
-    L.tileLayer('https://{s}.google.com/vt/lyrs=y&x={x}&y={y}&z={z}',{
-      maxZoom:20,subdomains:['mt0','mt1','mt2','mt3']
-    }).addTo(this.map);
-    this.updateMapMarkers();
-  },
-
-  updateMapMarkers(){
-    if(!this.map) return;
-    this.markers.forEach(m=>this.map.removeLayer(m));
-    this.markers=[];
-    this.filtered.forEach(r=>{
-      if(r.lat&&r.lng){
-        const m=L.marker([r.lat,r.lng]).addTo(this.map);
-        m.bindPopup(`<b>${r.nama}</b><br>${r.kelompok}<br>${r.jenis_ikan}<br> ${r.desa}`);
-        this.markers.push(m);
-      }
-    });
-    if(this.filtered.length>0){
-      const bounds=L.latLngBounds(this.filtered.filter(r=>r.lat&&r.lng).map(r=>[r.lat,r.lng]));
-      this.map.fitBounds(bounds);
-    }
-  },
-
-  toggleSelect(k,v){
-    const arr=this.selected[k];
-    const i=arr.indexOf(v);
-    if(i===-1)arr.push(v);else arr.splice(i,1);
-    this.updateFilterOptions();this.applyFilters();
-  },
-
-  resetFilters(){
-    Object.keys(this.selected).forEach(k=>this.selected[k]=[]);
-    this.updateFilterOptions();this.applyFilters();
-  },
-
-  updateFilterOptions(){
-    const uniq=a=>Array.from(new Set(a.filter(v=>v))).sort((a,b)=>a.localeCompare(b));
-    let filteredData=[...this.rawData];
-    if(this.selected.kecamatan.length>0)
-      filteredData=filteredData.filter(r=>this.selected.kecamatan.includes(r.kecamatan));
-    this.filtersDef.kecamatan.options=uniq(this.rawData.map(r=>r.kecamatan));
-    this.filtersDef.desa.options=uniq(filteredData.map(r=>r.desa));
-    this.filtersDef.kelompok.options=uniq(this.rawData.map(r=>r.kelompok));
-    this.filtersDef.jenis_usaha.options=uniq(this.rawData.map(r=>r.jenis_usaha));
-    this.filtersDef.wadah_budidaya.options=uniq(this.rawData.map(r=>r.wadah_budidaya));
-    this.filtersDef.jenis_ikan.options=uniq(this.rawData.flatMap(r=>r.jenis_ikan.split(",").map(v=>v.trim())).filter(v=>v));
-  },
-
-  applyFilters(){
-    this.filtered = this.rawData.filter(r => {
-      const match = Object.keys(this.selected).every(k => {
-        if(this.selected[k].length === 0) return true;
-        if(k === "jenis_ikan"){
-          return this.selected[k].some(val => r.jenis_ikan.includes(val));
-        }
-        return this.selected[k].includes(r[k]);
-      });
-      const search = this.searchQuery.trim() === "" ||
-                     Object.values(r).join(" ").toLowerCase().includes(this.searchQuery.toLowerCase());
-      return match && search;
-    });
-   this.updateStats();
-   this.updateJumlahKelompok();
-   this.updateMapMarkers();
-   
-  },
-
-  updateStats(){
-    const total=this.totalCount||1;
-    const f=this.filtered;
-    const sum=(a,k)=>a.reduce((t,x)=>t+(x[k]||0),0);
-    const count=(a,k)=>a.filter(x=>x[k]>0).length;
-    const countNonEmpty = (data, key) => {
-  return data.reduce((total, row) => {
-    const val = row[key];
-    if (val !== null && val !== undefined && val.toString().trim() !== '') {
-      return total + 1;
-    }
-    return total;
-  }, 0);
+          async init() {
+            // === JAM REALTIME + TANGGAL ===
+const fmtDate = (d) => {
+  const days = ["Minggu", "Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu"];
+  const months = [
+    "Januari","Februari","Maret","April","Mei","Juni",
+    "Juli","Agustus","September","Oktober","November","Desember"
+  ];
+  return `${days[d.getDay()]}, ${d.getDate()} ${months[d.getMonth()]} ${d.getFullYear()}`;
 };
 
+const fmtTime = (d) => {
+  const h = String(d.getHours()).padStart(2, "0");
+  const m = String(d.getMinutes()).padStart(2, "0");
+  const s = String(d.getSeconds()).padStart(2, "0");
+  return `${h}:${m}:${s}`;
+};
 
-    const kusuka=count(f,"kusuka");
-    const nib=count(f,"nib");
-    const cpib = countNonEmpty(f, "cpib");
-    const cbib=count(f,"cbib");
-    const kusuka_kelompok=f.reduce((acc,x)=>{ return acc + (x.kusuka_kelompok ? 1 : 0); },0);
-    const kolam=sum(f,"kolam");
-    const lahan=sum(f,"lahan");
-    const produksi=sum(f,"produksi");
+const updateClock = () => {
+  const now = new Date();
+  this.currentDate = fmtDate(now);
+  this.currentTime = fmtTime(now) + " WIB";
+};
+updateClock();
+setInterval(updateClock, 1000);
 
-    this.stats=[
-      {label:"Kusuka",value:kusuka,percent:((kusuka/total)*100).toFixed(0)},
-      {label:"NIB",value:nib,percent:((nib/total)*100).toFixed(0)},
-      {label:"CPIB",value:cpib,percent:((cpib/total)*100).toFixed(0)},
-      {label:"CBIB",value:cbib,percent:((cbib/total)*100).toFixed(0)},
-      {label:"Kusuka Kelompok",value:kusuka_kelompok,percent:null},
-      {label:"Jumlah Kolam",value:kolam.toLocaleString(),percent:null},
-      {label:"Luas Lahan (m²)",value:lahan.toLocaleString(),percent:null},
-      {label:"Jumlah Kelompok", value:0, percent:null},
-      {label:"Produksi (Kg)",value:produksi.toLocaleString(),percent:null}
-      
-    ];
-    this.updatePieChart(); // ganti nama fungsi agar sesuai pie chart
+            // original init: load sheet, parse, setup map etc.
+            try {
+              const res = await fetch(this.sheetURL);
+              const text = await res.text();
+              const json = JSON.parse(text.match(/setResponse\(([^]*?)\);/)[1]);
+              const cols = json.table.cols.map((c) => (c.label || "").trim());
+              const rows = json.table.rows.map((r) => {
+                const obj = {};
+                (r.c || []).forEach(
+                  (c, i) =>
+                    (obj[cols[i]] = c
+                      ? c.v !== undefined
+                        ? c.v
+                        : c.f || ""
+                      : "")
+                );
+                return obj;
+              });
+              this.rawData = rows.map((r) => ({
+                nama: r["NAMA PELAKU USAHA"] || "",
+                kelompok: r["KELOMPOK"] || r["NAMA KELOMPOK"] || "",
+                kecamatan: r["KECAMATAN"] || "",
+                desa: r["LOKASI USAHA (DESA)"] || "",
+                jenis_usaha: r["JENIS USAHA"] || "",
+                wadah_budidaya: r["WADAH BUDIDAYA"] || "",
+                jenis_ikan: [
+                  r["JENIS IKAN UTAMA"],
+                  r["JENIS IKAN TAMBAHAN 1"],
+                  r["JENIS IKAN TAMBAHAN 2"],
+                ]
+                  .filter((v) => v && v.trim() !== "")
+                  .join(", "),
+                kolam: parseFloat(r["JUMLAH KOLAM"] || r["P"] || 0) || 0,
+                lahan: parseFloat(r["LUAS LAHAN (m2)"] || r["Q"] || 0) || 0,
+                produksi:
+                  parseFloat(
+                    (r["PRODUKSI (Kg)"] || r["U"] || "0")
+                      .toString()
+                      .replace(/,/g, "")
+                  ) || 0,
+                kusuka: parseInt(r["KUSUKA"] || r["W"] || 0),
+                nib: parseInt(r["NIB"] || r["X"] || 0),
+                cpib: r["CPIB"] || r["Y"] || "",
+                cbib: parseInt(r["CBIB"] || r["Z"] || 0),
+                kusuka_kelompok: parseInt(r["KUSUKA KELOMPOK"] || r["AA"] || 0),
+                lat: parseFloat(r["LAT"] || r["LATITUDE"] || ""),
+                lng: parseFloat(r["LONG"] || r["LONGITUDE"] || ""),
+              }));
+              this.totalCount = this.rawData.length;
+              this.updateFilterOptions();
+              this.applyFilters();
+            } catch (err) {
+              console.error("Error loading sheet:", err);
+            }
 
+            // init map (keep original center)
+            this.map = L.map("map").setView([-3.8, 114.8], 9);
+            L.tileLayer("https://{s}.google.com/vt/lyrs=y&x={x}&y={y}&z={z}", {
+              maxZoom: 20,
+              subdomains: ["mt0", "mt1", "mt2", "mt3"],
+            }).addTo(this.map);
 
-  },
+            // load local geojson files automatically
+            await this.loadAllGeoJSON();
+            // after loading geojson, update markers
+            this.updateMapMarkers();
+          },
 
-updatePieChart() {
-  let filteredData = [...this.filtered];
-  const groupKey = this.chartFilter;
+          // --- existing functions (updateMapMarkers, toggleSelect, resetFilters, updateFilterOptions, applyFilters, updateStats, updatePieChart, updateJumlahKelompok, downloadExcel)
+          updateMapMarkers() {
+            if (!this.map) return;
 
-  let chartLabels = [];
-  let chartData = [];
+            // Bersihin layer lama dulu
+            if (this.markerLayer) {
+              this.map.removeLayer(this.markerLayer);
+            }
 
-  if (groupKey) {
-    const groupMap = new Map();
+            // Buat layer baru khusus marker
+            this.markerLayer = L.layerGroup();
+            this.markers = [];
 
-    filteredData.forEach(item => {
-      let keys = [];
+            this.filtered.forEach((r) => {
+              if (r.lat && r.lng) {
+                const m = L.marker([r.lat, r.lng]);
+                m.bindPopup(
+                  `<b>${r.nama}</b><br>${r.kelompok}<br>${r.jenis_ikan}<br>${r.desa}, ${r.kecamatan}`
+                );
+                this.markerLayer.addLayer(m);
+                this.markers.push(m);
+              }
+            });
 
-      if (groupKey === 'jenis_ikan') {
-        // Pisahkan berdasarkan koma, buang spasi ekstra
-        keys = item.jenis_ikan
-          .split(',')
-          .map(v => v.trim())
-          .filter(v => v !== '');
-      } else {
-        const val = item[groupKey];
-        if (val && val.trim() !== '') {
-          keys = [val.trim()];
-        }
-      }
+            // Tambahkan ke map
+            this.markerLayer.addTo(this.map);
 
-      keys.forEach(key => {
-        if (!groupMap.has(key)) {
-          groupMap.set(key, 0);
-        }
-        groupMap.set(key, groupMap.get(key) + 1);
-      });
-    });
+            // Zoom otomatis ke area marker
+            if (this.filtered.length > 0) {
+              const bounds = L.latLngBounds(
+                this.filtered
+                  .filter((r) => r.lat && r.lng)
+                  .map((r) => [r.lat, r.lng])
+              );
+              this.map.fitBounds(bounds);
+            }
+          },
 
-    chartLabels = Array.from(groupMap.keys());
-    chartData = Array.from(groupMap.values());
-  } else {
-    // Gunakan data statistik default
-    chartLabels = this.stats
-      .filter(s => s.value !== null && !["Kusuka Kelompok", "Jumlah Kelompok"].includes(s.label))
-      .map(s => s.label);
+          toggleSelect(k, v) {
+            const arr = this.selected[k];
+            const i = arr.indexOf(v);
+            if (i === -1) arr.push(v);
+            else arr.splice(i, 1);
+            this.updateFilterOptions();
+            this.applyFilters();
+          },
 
-    chartData = this.stats
-      .filter(s => s.value !== null && !["Kusuka Kelompok", "Jumlah Kelompok"].includes(s.label))
-      .map(s => {
-        const v = s.value;
-        return typeof v === "number" ? v : Number(v.toString().replace(/,/g, '')) || 0;
-      });
-  }
+          resetFilters() {
+            Object.keys(this.selected).forEach((k) => (this.selected[k] = []));
+            this.updateFilterOptions();
+            this.applyFilters();
+          },
 
-  // Warna
-  const colors = chartLabels.map((_, i) =>
-    `hsl(${(i * 137.5) % 360}, 70%, 60%)`
-  );
+          updateFilterOptions() {
+            const uniq = (a) =>
+              Array.from(new Set(a.filter((v) => v))).sort((a, b) =>
+                a.localeCompare(b)
+              );
+            let filteredData = [...this.rawData];
+            if (this.selected.kecamatan.length > 0)
+              filteredData = filteredData.filter((r) =>
+                this.selected.kecamatan.includes(r.kecamatan)
+              );
+            this.filtersDef.kecamatan.options = uniq(
+              this.rawData.map((r) => r.kecamatan)
+            );
+            this.filtersDef.desa.options = uniq(
+              filteredData.map((r) => r.desa)
+            );
+            this.filtersDef.kelompok.options = uniq(
+              this.rawData.map((r) => r.kelompok)
+            );
+            this.filtersDef.jenis_usaha.options = uniq(
+              this.rawData.map((r) => r.jenis_usaha)
+            );
+            this.filtersDef.wadah_budidaya.options = uniq(
+              this.rawData.map((r) => r.wadah_budidaya)
+            );
+            this.filtersDef.jenis_ikan.options = uniq(
+              this.rawData
+                .flatMap((r) => r.jenis_ikan.split(",").map((v) => v.trim()))
+                .filter((v) => v)
+            );
+          },
 
-  const isDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+          applyFilters() {
+            this.filtered = this.rawData.filter((r) => {
+              const match = Object.keys(this.selected).every((k) => {
+                if (this.selected[k].length === 0) return true;
+                if (k === "jenis_ikan") {
+                  return this.selected[k].some((val) =>
+                    r.jenis_ikan.includes(val)
+                  );
+                }
+                return this.selected[k].includes(r[k]);
+              });
+              const search =
+                this.searchQuery.trim() === "" ||
+                Object.values(r)
+                  .join(" ")
+                  .toLowerCase()
+                  .includes(this.searchQuery.toLowerCase());
+              return match && search;
+            });
+            this.updateStats();
+            this.updateJumlahKelompok();
+            this.updateMapMarkers();
+            // update geo layers visibility based on filters
+            this.updateGeoFilter();
+          },
 
-  // Hancurkan chart lama jika ada
-  if (this.barChart) this.barChart.destroy();
+          updateStats() {
+            const total = this.totalCount || 1;
+            const f = this.filtered;
+            const sum = (a, k) => a.reduce((t, x) => t + (x[k] || 0), 0);
+            const count = (a, k) => a.filter((x) => x[k] > 0).length;
+            const countNonEmpty = (data, key) => {
+              return data.reduce((total, row) => {
+                const val = row[key];
+                if (
+                  val !== null &&
+                  val !== undefined &&
+                  val.toString().trim() !== ""
+                ) {
+                  return total + 1;
+                }
+                return total;
+              }, 0);
+            };
 
-Chart.register(ChartDataLabels); // <== Ini penting
+            const kusuka = count(f, "kusuka");
+            const nib = count(f, "nib");
+            const cpib = countNonEmpty(f, "cpib");
+            const cbib = count(f, "cbib");
+            const kusuka_kelompok = f.reduce((acc, x) => {
+              return acc + (x.kusuka_kelompok ? 1 : 0);
+            }, 0);
+            const kolam = sum(f, "kolam");
+            const lahan = sum(f, "lahan");
+            const produksi = sum(f, "produksi");
 
-const ctx = document.getElementById('barChart').getContext('2d');
-this.barChart = new Chart(ctx, {
-  type: 'pie',
-  data: {
-    labels: chartLabels,
-    datasets: [{
-      data: chartData,
-      backgroundColor: colors
-    }]
-  },
-  options: {
-    responsive: true,
-    plugins: {
-      legend: {
-        labels: {
-          color: isDark ? '#fff' : '#1f2937',
-          font: { size: 13 }
-        }
-      },
-      tooltip: {
-  bodyColor: isDark ? '#fff' : '#1f2937',
-  backgroundColor: isDark ? '#1f2937' : '#f9fafb',
-  callbacks: {
-    label: function(context) {
-      const label = context.label || '';
-      const value = context.parsed || 0;
-      const data = context.chart.data.datasets[0].data;
-      const total = data.reduce((sum, val) => sum + val, 0);
-      const percent = ((value / total) * 100).toFixed(1);
-      return `${label}: ${value} (${percent}%)`;
+            this.stats = [
+              {
+                label: "Kusuka",
+                value: kusuka,
+                percent: ((kusuka / total) * 100).toFixed(0),
+              },
+              {
+                label: "NIB",
+                value: nib,
+                percent: ((nib / total) * 100).toFixed(0),
+              },
+              {
+                label: "CPIB",
+                value: cpib,
+                percent: ((cpib / total) * 100).toFixed(0),
+              },
+              {
+                label: "CBIB",
+                value: cbib,
+                percent: ((cbib / total) * 100).toFixed(0),
+              },
+              {
+                label: "Kusuka Kelompok",
+                value: kusuka_kelompok,
+                percent: null,
+              },
+              {
+                label: "Jumlah Kolam",
+                value: kolam.toLocaleString(),
+                percent: null,
+              },
+              {
+                label: "Luas Lahan (m²)",
+                value: lahan.toLocaleString(),
+                percent: null,
+              },
+              { label: "Jumlah Kelompok", value: 0, percent: null },
+              {
+                label: "Produksi (Kg)",
+                value: produksi.toLocaleString(),
+                percent: null,
+              },
+            ];
+            this.updatePieChart(); // ganti nama fungsi agar sesuai pie chart
+          },
+
+          updatePieChart() {
+            let filteredData = [...this.filtered];
+            const groupKey = this.chartFilter;
+
+            let chartLabels = [];
+            let chartData = [];
+
+            if (groupKey) {
+              const groupMap = new Map();
+
+              filteredData.forEach((item) => {
+                let keys = [];
+
+                if (groupKey === "jenis_ikan") {
+                  // Pisahkan berdasarkan koma, buang spasi ekstra
+                  keys = item.jenis_ikan
+                    .split(",")
+                    .map((v) => v.trim())
+                    .filter((v) => v !== "");
+                } else {
+                  const val = item[groupKey];
+                  if (val && val.trim() !== "") {
+                    keys = [val.trim()];
+                  }
+                }
+
+                keys.forEach((key) => {
+                  if (!groupMap.has(key)) {
+                    groupMap.set(key, 0);
+                  }
+                  groupMap.set(key, groupMap.get(key) + 1);
+                });
+              });
+
+              chartLabels = Array.from(groupMap.keys());
+              chartData = Array.from(groupMap.values());
+            } else {
+              // Gunakan data statistik default
+              chartLabels = this.stats
+                .filter(
+                  (s) =>
+                    s.value !== null &&
+                    !["Kusuka Kelompok", "Jumlah Kelompok"].includes(s.label)
+                )
+                .map((s) => s.label);
+
+              chartData = this.stats
+                .filter(
+                  (s) =>
+                    s.value !== null &&
+                    !["Kusuka Kelompok", "Jumlah Kelompok"].includes(s.label)
+                )
+                .map((s) => {
+                  const v = s.value;
+                  return typeof v === "number"
+                    ? v
+                    : Number(v.toString().replace(/,/g, "")) || 0;
+                });
+            }
+
+            // Warna
+            const colors = chartLabels.map(
+              (_, i) => `hsl(${(i * 137.5) % 360}, 70%, 60%)`
+            );
+
+            const isDark =
+              window.matchMedia &&
+              window.matchMedia("(prefers-color-scheme: dark)").matches;
+
+            // Hancurkan chart lama jika ada
+            if (this.barChart) this.barChart.destroy();
+
+            Chart.register(ChartDataLabels); // <== Ini penting
+
+            const ctx = document.getElementById("barChart").getContext("2d");
+            this.barChart = new Chart(ctx, {
+              type: "pie",
+              data: {
+                labels: chartLabels,
+                datasets: [
+                  {
+                    data: chartData,
+                    backgroundColor: colors,
+                  },
+                ],
+              },
+              options: {
+                responsive: true,
+                plugins: {
+                  legend: {
+                    labels: {
+                      color: isDark ? "#fff" : "#1f2937",
+                      font: { size: 13 },
+                    },
+                  },
+                  tooltip: {
+                    bodyColor: isDark ? "#fff" : "#1f2937",
+                    backgroundColor: isDark ? "#1f2937" : "#f9fafb",
+                    callbacks: {
+                      label: function (context) {
+                        const label = context.label || "";
+                        const value = context.parsed || 0;
+                        const data = context.chart.data.datasets[0].data;
+                        const total = data.reduce((sum, val) => sum + val, 0);
+                        const percent = ((value / total) * 100).toFixed(1);
+                        return `${label}: ${value} (${percent}%)`;
+                      },
+                    },
+                  },
+                  datalabels: {
+                    color: isDark ? "#fff" : "#1f2937",
+                    formatter: (value, context) => {
+                      const total = context.chart.data.datasets[0].data.reduce(
+                        (a, b) => a + b,
+                        0
+                      );
+                      const percentage = ((value / total) * 100).toFixed(1);
+                      return `${percentage}%`;
+                    },
+                    font: {
+                      weight: "bold",
+                      size: 12,
+                    },
+                  },
+                },
+              },
+              plugins: [ChartDataLabels], // <== Ini juga penting
+            });
+          },
+
+          updateJumlahKelompok() {
+            const kelompokSet = new Set();
+
+            this.filtered.forEach((r) => {
+              if (r.kelompok && r.kelompok.trim() !== "") {
+                kelompokSet.add(r.kelompok.trim());
+              }
+            });
+
+            const jumlahKelompok = kelompokSet.size;
+
+            this.stats = this.stats.map((stat) => {
+              if (stat.label === "Jumlah Kelompok") {
+                return { ...stat, value: jumlahKelompok, percent: null };
+              }
+              return stat;
+            });
+          },
+
+          downloadExcel() {
+            if (this.filtered.length === 0) {
+              alert("Tidak ada data untuk diunduh.");
+              return;
+            }
+
+            const exportData = this.filtered.map((row) => {
+              return {
+                ...row,
+                kusuka: row.kusuka ? `'${row.kusuka.toString()}` : "",
+              };
+            });
+
+            const ws = XLSX.utils.json_to_sheet(exportData);
+
+            const kusukaCol = Object.keys(exportData[0]).indexOf("kusuka");
+            if (kusukaCol >= 0) {
+              const colLetter = XLSX.utils.encode_col(kusukaCol);
+              for (let i = 1; i <= exportData.length; i++) {
+                ws[`${colLetter}${i + 1}`].z = "@";
+              }
+            }
+
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, "Data Pelaku Usaha");
+            XLSX.writeFile(wb, "data_pelaku_usaha.xlsx");
+          },
+
+          // === GEOJSON PATCH FUNCTIONS ===
+          async loadAllGeoJSON() {
+            // Attempt to load files from local folder 'geojson/' using the embedded file list
+            const filenames = [
+              "id6104080_jongkat.geojson",
+              "id6104081_segedong.geojson",
+              "id6104090_sungai_pinyuh.geojson",
+              "id6104091_anjongan.geojson",
+              "id6104100_mempawah_hilir.geojson",
+              "id6104101_mempawah_timur.geojson",
+              "id6104110_sungai_kunyit.geojson",
+              "id6104120_toho.geojson",
+              "id6104121_sadaniang.geojson",
+            ];
+            for (const fname of filenames) {
+              const path = `geojson/${fname}`;
+              try {
+                const res = await fetch(path);
+                if (!res.ok) throw new Error(res.statusText);
+                const geo = await res.json();
+                // determine if features are district-level or village-level by checking properties
+                const sample =
+                  geo.features && geo.features[0] && geo.features[0].properties
+                    ? geo.features[0].properties
+                    : {};
+                // add layer as 'kecamatan' if 'district' exists, else treat as desa if 'village' exists
+                if (sample.district && !sample.village) {
+                  this._addGeoLayer(geo, "kecamatan", fname);
+                } else {
+                  // if both district and village present, still create both levels; we group by district for kecamatan layer as merged polygons
+                  this._addGeoLayer(geo, "desa", fname);
+                }
+              } catch (err) {
+                console.warn("Tidak bisa load", path, err);
+              }
+            }
+            // After loading all, build merged kecamatan layer if needed
+            this._finalizeKecamatanLayer();
+            // Setelah semua layer diload, sembunyikan layer jika belum ada filter aktif
+if (this.updateGeoFilter) {
+  this.updateGeoFilter();
+}
+
+          },
+
+          _addGeoLayer(geojson, type, sourceName) {
+            // store raw as a feature group per source
+            if (!this._rawGeo) this._rawGeo = [];
+            this._rawGeo.push({ geojson, type, sourceName });
+            // create layer and keep reference
+            const layer = L.geoJSON(geojson, {
+              style: (f) => ({
+                color: this._getColorForFeature(type, f),
+                weight: 1.2,
+                fillOpacity: 0.12,
+              }),
+              onEachFeature: (f, l) => {
+                const keyProp = type === "kecamatan" ? "district" : "village";
+                const name =
+                  f.properties?.[keyProp] ||
+                  f.properties?.NAME ||
+                  f.properties?.name ||
+                  "-";
+                const area = f.geometry ? turf.area(f) : 0;
+                const readableArea = (area / 10000).toLocaleString(undefined, {
+                  maximumFractionDigits: 2,
+                });
+                const displayType = type === "kecamatan" ? "Kecamatan" : "Desa";
+                l.bindPopup(
+                  `<b>${name}</b><br/>${displayType}<br/>Luas: ${readableArea} ha`
+                );
+                l.on("mouseover", () =>
+                  l.setStyle({ weight: 2.5, fillOpacity: 0.25 })
+                );
+                l.on("mouseout", () =>
+                  l.setStyle({ weight: 1.2, fillOpacity: 0.12 })
+                );
+              },
+            });
+            // keep in raw layers map by type
+            if (!this._layersByType) this._layersByType = {};
+            if (!this._layersByType[type]) this._layersByType[type] = [];
+            this._layersByType[type].push({ layer, sourceName });
+            // add to map by default
+            layer.addTo(this.map);
+            this.layerVisible[type] = false;
+            // add to legend
+            this._updateLegendFromLayers(type);
+          },
+
+          _getColorForFeature(type, feature) {
+            const keyProp = type === "kecamatan" ? "district" : "village";
+            const id =
+              feature.properties?.[keyProp] ||
+              feature.properties?.NAME ||
+              feature.properties?.name ||
+              JSON.stringify(feature.properties).slice(0, 30);
+            if (!this.layerColors[type]) this.layerColors[type] = {};
+            if (this.layerColors[type][id]) return this.layerColors[type][id];
+            const hash = Array.from(id).reduce(
+              (h, c) => (h << 5) - h + c.charCodeAt(0),
+              0
+            );
+            const hue = Math.abs(hash) % 360;
+            const color = `hsl(${hue},70%,55%)`;
+            this.layerColors[type][id] = color;
+            return color;
+          },
+
+          _updateLegendFromLayers(type){
+  const items = [];
+  const seen = new Set();
+  const layers = (this._layersByType && this._layersByType[type]) ? this._layersByType[type] : [];
+  const keyProp = type === 'kecamatan' ? 'district' : 'village';
+
+  const selectedKec = this.selected.kecamatan.map(k => k.toLowerCase());
+  const selectedDesa = this.selected.desa.map(d => d.toLowerCase());
+
+  // Kalau tidak ada filter aktif, jangan tampilkan apa-apa
+  if (selectedKec.length === 0 && selectedDesa.length === 0) {
+    if (this._legendControl) {
+      try { this.map.removeControl(this._legendControl); } catch (e) {}
+      this._legendControl = null;
     }
-  }
-},
-      datalabels: {
-        color: isDark ? '#fff' : '#1f2937',
-        formatter: (value, context) => {
-          const total = context.chart.data.datasets[0].data.reduce((a, b) => a + b, 0);
-          const percentage = ((value / total) * 100).toFixed(1);
-          return `${percentage}%`;
-        },
-        font: {
-          weight: 'bold',
-          size: 12
-        }
-      }
-    }
-  },
-  plugins: [ChartDataLabels] // <== Ini juga penting
-});
-
-},
-
-  updateJumlahKelompok() {
-  // Ambil semua kelompok unik dari filtered, abaikan sel kosong
-  const kelompokSet = new Set();
-
-  this.filtered.forEach(r => {
-    if(r.kelompok && r.kelompok.trim() !== '') {
-      kelompokSet.add(r.kelompok.trim());
-    }
-  });
-
-  const jumlahKelompok = kelompokSet.size;
-
-  // Update sidebar statistik Jumlah Kelompok
-  this.stats = this.stats.map(stat => {
-    if(stat.label === "Jumlah Kelompok") {
-      return { ...stat, value: jumlahKelompok, percent: null };
-    }
-    return stat;
-  });
-},
-
-  downloadExcel(){
-  if(this.filtered.length === 0){
-    alert("Tidak ada data untuk diunduh.");
     return;
   }
 
-  // Salin data dan pastikan kusuka adalah string
-  const exportData = this.filtered.map(row => {
-    return {
-      ...row,
-      kusuka: row.kusuka ? `'${row.kusuka.toString()}` : '' // <- tambahkan tanda kutip agar Excel baca sebagai teks
-    };
+  layers.forEach(obj => {
+    obj.layer.eachLayer(l => {
+      const f = l.feature;
+      const name = (f.properties?.[keyProp] || f.properties?.NAME || f.properties?.name || '').trim();
+      const kec = (f.properties?.district || '').trim();
+      if (!name || seen.has(name)) return;
+
+      // Filter legend berdasar filter aktif (case-insensitive)
+      let show = true;
+      if (type === 'desa') {
+        const matchKec = selectedKec.length === 0 || selectedKec.includes(kec.toLowerCase());
+        const matchDesa = selectedDesa.length === 0 || selectedDesa.includes(name.toLowerCase());
+        show = matchKec && matchDesa;
+      } else if (type === 'kecamatan') {
+        show = selectedKec.length === 0 || selectedKec.includes(name.toLowerCase());
+      }
+
+      if (!show) return;
+
+      seen.add(name);
+      const color = this._getColorForFeature(type, f);
+      const area = f.geometry ? turf.area(f) : 0;
+      items.push({ name, color, area });
+    });
   });
 
-  const ws = XLSX.utils.json_to_sheet(exportData);
-
-  // Optional: Format kolom kusuka sebagai teks di Excel
-  const kusukaCol = Object.keys(exportData[0]).indexOf("kusuka");
-  if (kusukaCol >= 0) {
-    const colLetter = XLSX.utils.encode_col(kusukaCol);
-    for(let i = 1; i <= exportData.length; i++) {
-      ws[`${colLetter}${i+1}`].z = '@'; // Format teks
+  // Kalau hasil filter kosong → gak perlu tampilkan legend
+  if (items.length === 0) {
+    if (this._legendControl) {
+      try { this.map.removeControl(this._legendControl); } catch (e) {}
+      this._legendControl = null;
     }
+    return;
   }
 
-  const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, ws, "Data Pelaku Usaha");
-  XLSX.writeFile(wb, "data_pelaku_usaha.xlsx");
-}
-}}
+  // Urut & tampilkan legend
+  items.sort((a, b) => a.name.localeCompare(b.name));
+  const legendItems = items.slice(0, 20);
 
-</script>
+  if (this._legendControl) try { this.map.removeControl(this._legendControl); } catch (e) {}
+  const legend = L.control({ position: 'bottomright' });
+  legend.onAdd = function (map) {
+    const div = L.DomUtil.create('div', 'bg-white p-2 rounded shadow text-xs');
+    const title = type === 'kecamatan' ? 'KECAMATAN' : 'DESA';
+    div.innerHTML = `<b>${title}</b><br/>`;
+    legendItems.forEach(it => {
+      const ha = (it.area / 10000).toLocaleString(undefined, { maximumFractionDigits: 2 });
+      div.innerHTML += `<div style="display:flex;align-items:center;gap:6px;margin-bottom:4px">
+        <span style="width:18px;height:12px;background:${it.color};display:inline-block;border-radius:3px;border:1px solid #ccc"></span>
+        <span style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:140px;display:inline-block">${it.name} — ${ha} ha</span>
+      </div>`;
+    });
+    return div;
+  };
+  legend.addTo(this.map);
+  this._legendControl = legend;
+},
 
-</body>
+
+          _finalizeKecamatanLayer() {
+            // If kecamatan layers are separate per-file, merge them into single layer group
+            if (!this._layersByType || !this._layersByType["kecamatan"]) return;
+            const group = L.featureGroup();
+            this._layersByType["kecamatan"].forEach((obj) => {
+              group.addLayer(obj.layer);
+            });
+            // store in geoLayers.kecamatan
+            this.geoLayers.kecamatan = group;
+            this.layerVisible.kecamatan = true;
+            // ensure added to map
+            group.addTo(this.map);
+          },
+          
+          updateGeoFilter(){
+  try {
+    const hasKecFilter = this.selected.kecamatan.length > 0;
+    const hasDesaFilter = this.selected.desa.length > 0;
+
+    // === Kalau filter kosong: hapus semua layer & legend ===
+    if (!hasKecFilter && !hasDesaFilter) {
+      if (this.geoLayers.kecamatan) {
+        this.geoLayers.kecamatan.eachLayer(layer => {
+          if (this.map.hasLayer(layer)) this.map.removeLayer(layer);
+        });
+      }
+      if (this._layersByType && this._layersByType['desa']) {
+        this._layersByType['desa'].forEach(obj => {
+          obj.layer.eachLayer(layer => {
+            if (this.map.hasLayer(layer)) this.map.removeLayer(layer);
+          });
+        });
+      }
+      if (this._legendControl) {
+        try { this.map.removeControl(this._legendControl); } catch(e){}
+        this._legendControl = null;
+      }
+      return;
+    }
+
+    const selectedKec = this.selected.kecamatan.map(k => k.toLowerCase().trim());
+    const selectedDesa = this.selected.desa.map(d => d.toLowerCase().trim());
+
+    // === Filter layer KECAMATAN ===
+    if (this.geoLayers.kecamatan) {
+      this.geoLayers.kecamatan.eachLayer(layer => {
+        const kec = (layer.feature?.properties?.district || layer.feature?.properties?.NAME || layer.feature?.properties?.name || '').toLowerCase().trim();
+        const show = selectedKec.length === 0 || selectedKec.some(k => kec.includes(k));
+        if (show) {
+          if (!this.map.hasLayer(layer)) layer.addTo(this.map);
+          layer.setStyle({ opacity: 1, fillOpacity: 0.15 });
+        } else {
+          if (this.map.hasLayer(layer)) this.map.removeLayer(layer);
+        }
+      });
+    }
+
+    // === Filter layer DESA ===
+    if (this._layersByType && this._layersByType['desa']) {
+      this._layersByType['desa'].forEach(obj => {
+        obj.layer.eachLayer(layer => {
+          const desa = (layer.feature?.properties?.village || layer.feature?.properties?.NAME || layer.feature?.properties?.name || '').toLowerCase().trim();
+          const kec = (layer.feature?.properties?.district || '').toLowerCase().trim();
+
+          const matchKec = selectedKec.length === 0 || selectedKec.some(k => kec.includes(k));
+          const matchDesa = selectedDesa.length === 0 || selectedDesa.some(d => desa.includes(d));
+          const show = matchKec && matchDesa;
+
+          if (show) {
+            if (!this.map.hasLayer(layer)) layer.addTo(this.map);
+            layer.setStyle({ opacity: 1, fillOpacity: 0.15 });
+          } else {
+            if (this.map.hasLayer(layer)) this.map.removeLayer(layer);
+          }
+        });
+      });
+    }
+
+    // === Update legend sesuai filter aktif ===
+    if (hasDesaFilter) {
+      this._updateLegendFromLayers('desa');
+    } else if (hasKecFilter) {
+      this._updateLegendFromLayers('desa');
+    }
+
+  } catch(e){
+    console.warn('updateGeoFilter error:', e);
+  }
+},
+
+
+        };
+      } // end cleanBlueApp
+    </script>
+  </body>
 </html>
-
-
