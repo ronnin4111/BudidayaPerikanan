@@ -989,134 +989,139 @@ setInterval(updateClock, 1000);
           },
 
           updatePieChart() {
-            let filteredData = [...this.filtered];
-            const groupKey = this.chartFilter;
+  let filteredData = [...this.filtered];
+  const groupKey = this.chartFilter;
 
-            let chartLabels = [];
-            let chartData = [];
+  let chartLabels = [];
+  let chartData = [];
 
-            if (groupKey) {
-              const groupMap = new Map();
+  if (groupKey) {
+    const groupMap = new Map();
 
-              filteredData.forEach((item) => {
-                let keys = [];
+    filteredData.forEach((item) => {
+      let keys = [];
 
-                if (groupKey === "jenis_ikan") {
-                  // Pisahkan berdasarkan koma, buang spasi ekstra
-                  keys = item.jenis_ikan
-                    .split(",")
-                    .map((v) => v.trim())
-                    .filter((v) => v !== "");
-                } else {
-                  const val = item[groupKey];
-                  if (val && val.trim() !== "") {
-                    keys = [val.trim()];
-                  }
-                }
+      if (groupKey === "jenis_ikan") {
+        // Pisahkan berdasarkan koma, buang spasi ekstra
+        keys = item.jenis_ikan
+          .split(",")
+          .map((v) => v.trim())
+          .filter((v) => v !== "");
+      } else {
+        const val = item[groupKey];
+        if (val && val.trim() !== "") {
+          keys = [val.trim()];
+        }
+      }
 
-                keys.forEach((key) => {
-                  if (!groupMap.has(key)) {
-                    groupMap.set(key, 0);
-                  }
-                  groupMap.set(key, groupMap.get(key) + 1);
-                });
-              });
+      keys.forEach((key) => {
+        if (!groupMap.has(key)) {
+          groupMap.set(key, 0);
+        }
 
-              chartLabels = Array.from(groupMap.keys());
-              chartData = Array.from(groupMap.values());
-            } else {
-              // Gunakan data statistik default
-              chartLabels = this.stats
-                .filter(
-                  (s) =>
-                    s.value !== null &&
-                    !["Kusuka Kelompok", "Jumlah Kelompok"].includes(s.label)
-                )
-                .map((s) => s.label);
+        // 🔧 Perbaikan di sini:
+        // Kalau chartFilter = "wadah_budidaya", tambahkan total produksi, bukan hitung baris
+        if (groupKey === "wadah_budidaya") {
+          groupMap.set(key, groupMap.get(key) + (item.produksi || 0));
+        } else {
+          groupMap.set(key, groupMap.get(key) + 1);
+        }
+      });
+    });
 
-              chartData = this.stats
-                .filter(
-                  (s) =>
-                    s.value !== null &&
-                    !["Kusuka Kelompok", "Jumlah Kelompok"].includes(s.label)
-                )
-                .map((s) => {
-                  const v = s.value;
-                  return typeof v === "number"
-                    ? v
-                    : Number(v.toString().replace(/,/g, "")) || 0;
-                });
-            }
+    chartLabels = Array.from(groupMap.keys());
+    chartData = Array.from(groupMap.values());
+  } else {
+    // Default statistik
+    chartLabels = this.stats
+      .filter(
+        (s) =>
+          s.value !== null &&
+          !["Kusuka Kelompok", "Jumlah Kelompok"].includes(s.label)
+      )
+      .map((s) => s.label);
 
-            // Warna
-            const colors = chartLabels.map(
-              (_, i) => `hsl(${(i * 137.5) % 360}, 70%, 60%)`
-            );
+    chartData = this.stats
+      .filter(
+        (s) =>
+          s.value !== null &&
+          !["Kusuka Kelompok", "Jumlah Kelompok"].includes(s.label)
+      )
+      .map((s) => {
+        const v = s.value;
+        return typeof v === "number"
+          ? v
+          : Number(v.toString().replace(/,/g, "")) || 0;
+      });
+  }
 
-            const isDark =
-              window.matchMedia &&
-              window.matchMedia("(prefers-color-scheme: dark)").matches;
+  const colors = chartLabels.map(
+    (_, i) => `hsl(${(i * 137.5) % 360}, 70%, 60%)`
+  );
 
-            // Hancurkan chart lama jika ada
-            if (this.barChart) this.barChart.destroy();
+  const isDark =
+    window.matchMedia &&
+    window.matchMedia("(prefers-color-scheme: dark)").matches;
 
-            Chart.register(ChartDataLabels); // <== Ini penting
+  if (this.barChart) this.barChart.destroy();
 
-            const ctx = document.getElementById("barChart").getContext("2d");
-            this.barChart = new Chart(ctx, {
-              type: "pie",
-              data: {
-                labels: chartLabels,
-                datasets: [
-                  {
-                    data: chartData,
-                    backgroundColor: colors,
-                  },
-                ],
-              },
-              options: {
-                responsive: true,
-                plugins: {
-                  legend: {
-                    labels: {
-                      color: isDark ? "#fff" : "#1f2937",
-                      font: { size: 13 },
-                    },
-                  },
-                  tooltip: {
-                    bodyColor: isDark ? "#fff" : "#1f2937",
-                    backgroundColor: isDark ? "#1f2937" : "#f9fafb",
-                    callbacks: {
-                      label: function (context) {
-                        const label = context.label || "";
-                        const value = context.parsed || 0;
-                        const data = context.chart.data.datasets[0].data;
-                        const total = data.reduce((sum, val) => sum + val, 0);
-                        const percent = ((value / total) * 100).toFixed(1);
-                        return `${label}: ${value} (${percent}%)`;
-                      },
-                    },
-                  },
-                  datalabels: {
-                    color: isDark ? "#fff" : "#1f2937",
-                    formatter: (value, context) => {
-                      const total = context.chart.data.datasets[0].data.reduce(
-                        (a, b) => a + b,
-                        0
-                      );
-                      const percentage = ((value / total) * 100).toFixed(1);
-                      return `${percentage}%`;
-                    },
-                    font: {
-                      weight: "bold",
-                      size: 12,
-                    },
-                  },
-                },
-              },
-              plugins: [ChartDataLabels], // <== Ini juga penting
-            });
+  Chart.register(ChartDataLabels);
+
+  const ctx = document.getElementById("barChart").getContext("2d");
+  this.barChart = new Chart(ctx, {
+    type: "pie",
+    data: {
+      labels: chartLabels,
+      datasets: [
+        {
+          data: chartData,
+          backgroundColor: colors,
+        },
+      ],
+    },
+    options: {
+      responsive: true,
+      plugins: {
+        legend: {
+          labels: {
+            color: isDark ? "#fff" : "#1f2937",
+            font: { size: 13 },
           },
+        },
+        tooltip: {
+          bodyColor: isDark ? "#fff" : "#1f2937",
+          backgroundColor: isDark ? "#1f2937" : "#f9fafb",
+          callbacks: {
+            label: function (context) {
+              const label = context.label || "";
+              const value = context.parsed || 0;
+              const data = context.chart.data.datasets[0].data;
+              const total = data.reduce((sum, val) => sum + val, 0);
+              const percent = ((value / total) * 100).toFixed(1);
+              return `${label}: ${value.toLocaleString()} (${percent}%)`;
+            },
+          },
+        },
+        datalabels: {
+          color: isDark ? "#fff" : "#1f2937",
+          formatter: (value, context) => {
+            const total = context.chart.data.datasets[0].data.reduce(
+              (a, b) => a + b,
+              0
+            );
+            const percentage = ((value / total) * 100).toFixed(1);
+            return `${percentage}%`;
+          },
+          font: {
+            weight: "bold",
+            size: 12,
+          },
+        },
+      },
+    },
+    plugins: [ChartDataLabels],
+  });
+},
 
           updateJumlahKelompok() {
             const kelompokSet = new Set();
@@ -1475,4 +1480,5 @@ if (this.updateGeoFilter) {
   
 </body>
 </html>
+
 
