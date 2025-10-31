@@ -1002,7 +1002,6 @@ setInterval(updateClock, 1000);
       let keys = [];
 
       if (groupKey === "jenis_ikan") {
-        // Pisahkan berdasarkan koma, buang spasi ekstra
         keys = item.jenis_ikan
           .split(",")
           .map((v) => v.trim())
@@ -1020,9 +1019,9 @@ setInterval(updateClock, 1000);
         }
 
         // 🔧 Perbaikan di sini:
-        // Kalau chartFilter = "wadah_budidaya", tambahkan total produksi, bukan hitung baris
+        // Kalau chartFilter = "wadah_budidaya", jumlahkan kolam (bukan hitung baris)
         if (groupKey === "wadah_budidaya") {
-          groupMap.set(key, groupMap.get(key) + (item.produksi || 0));
+          groupMap.set(key, groupMap.get(key) + (item.kolam || 0));
         } else {
           groupMap.set(key, groupMap.get(key) + 1);
         }
@@ -1032,7 +1031,6 @@ setInterval(updateClock, 1000);
     chartLabels = Array.from(groupMap.keys());
     chartData = Array.from(groupMap.values());
   } else {
-    // Default statistik
     chartLabels = this.stats
       .filter(
         (s) =>
@@ -1112,16 +1110,14 @@ setInterval(updateClock, 1000);
             const percentage = ((value / total) * 100).toFixed(1);
             return `${percentage}%`;
           },
-          font: {
-            weight: "bold",
-            size: 12,
-          },
+          font: { weight: "bold", size: 12 },
         },
       },
     },
     plugins: [ChartDataLabels],
   });
-},
+}
+,
 
           updateJumlahKelompok() {
             const kelompokSet = new Set();
@@ -1480,5 +1476,6 @@ if (this.updateGeoFilter) {
   
 </body>
 </html>
+
 
 
