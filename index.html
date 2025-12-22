@@ -541,37 +541,37 @@
                   Jenis Ikan
                 </th>
                 <th
-                  class="p-2 text-right sticky top-0 bg-cyan-600 z-10 whitespace-nowrap"
+                  class="p-2 text-right sticky top-0 bg-cyan-600 z-10 whitespace-nowrap hidden"
                 >
                   Produksi (Kg)
                 </th>
                 <th
-                  class="p-2 text-center sticky top-0 bg-cyan-600 z-10 whitespace-nowrap"
+                  class="p-2 text-center sticky top-0 bg-cyan-600 z-10 whitespace-nowrap hidden"
                 >
                   KUSUKA
                 </th>
                 <th
-                  class="p-2 text-center sticky top-0 bg-cyan-600 z-10 whitespace-nowrap"
+                  class="p-2 text-center sticky top-0 bg-cyan-600 z-10 whitespace-nowrap hidden"
                 >
                   NIB
                 </th>
                 <th
-                  class="p-2 text-center sticky top-0 bg-cyan-600 z-10 whitespace-nowrap"
+                  class="p-2 text-center sticky top-0 bg-cyan-600 z-10 whitespace-nowrap hidden"
                 >
                   CPIB
                 </th>
                 <th
-                  class="p-2 text-center sticky top-0 bg-cyan-600 z-10 whitespace-nowrap"
+                  class="p-2 text-center sticky top-0 bg-cyan-600 z-10 whitespace-nowrap hidden"
                 >
                   CBIB
                 </th>
                 <th
-                  class="p-2 text-right sticky top-0 bg-cyan-600 z-10 whitespace-nowrap"
+                  class="p-2 text-right sticky top-0 bg-cyan-600 z-10 whitespace-nowrap hidden"
                 >
                   Jumlah Kolam
                 </th>
                 <th
-                  class="p-2 text-right sticky top-0 bg-cyan-600 z-10 whitespace-nowrap"
+                  class="p-2 text-right sticky top-0 bg-cyan-600 z-10 whitespace-nowrap hidden"
                 >
                   Luas Lahan (m²)
                 </th>
@@ -597,31 +597,31 @@
                     x-text="row.jenis_ikan"
                   ></td>
                   <td
-                    class="p-2 text-right whitespace-nowrap"
+                    class="p-2 text-right whitespace-nowrap hidden"
                     x-text="(row.produksi || 0).toLocaleString()"
                   ></td>
                   <td
-                    class="p-2 text-center whitespace-nowrap"
+                    class="p-2 text-center whitespace-nowrap hidden"
                     x-text="row.kusuka || '-'"
                   ></td>
                   <td
-                    class="p-2 text-center whitespace-nowrap"
+                    class="p-2 text-center whitespace-nowrap hidden"
                     x-text="row.nib ? '✅' : '-'"
                   ></td>
                   <td
-                    class="p-2 text-center whitespace-nowrap"
+                    class="p-2 text-center whitespace-nowrap hidden"
                     x-text="row.cpib ? '✅' : '-'"
                   ></td>
                   <td
-                    class="p-2 text-center whitespace-nowrap"
+                    class="p-2 text-center whitespace-nowrap hidden"
                     x-text="row.cbib ? '✅' : '-'"
                   ></td>
                   <td
-                    class="p-2 text-right whitespace-nowrap"
+                    class="p-2 text-right whitespace-nowrap hidden"
                     x-text="(row.kolam || 0).toLocaleString()"
                   ></td>
                   <td
-                    class="p-2 text-right whitespace-nowrap"
+                    class="p-2 text-right whitespace-nowrap hidden"
                     x-text="(row.lahan || 0).toLocaleString()"
                   ></td>
                 </tr>
@@ -887,106 +887,92 @@ setInterval(updateClock, 1000);
           },
 
           applyFilters() {
-            this.filtered = this.rawData.filter((r) => {
-              const match = Object.keys(this.selected).every((k) => {
-                if (this.selected[k].length === 0) return true;
-                if (k === "jenis_ikan") {
-                  return this.selected[k].some((val) =>
-                    r.jenis_ikan.includes(val)
-                  );
-                }
-                return this.selected[k].includes(r[k]);
-              });
-              const search =
-                this.searchQuery.trim() === "" ||
-                Object.values(r)
-                  .join(" ")
-                  .toLowerCase()
-                  .includes(this.searchQuery.toLowerCase());
-              return match && search;
-            });
-            this.updateStats();
-            this.updateJumlahKelompok();
-            this.updateMapMarkers();
-            // update geo layers visibility based on filters
-            this.updateGeoFilter();
-          },
+  this.filtered = this.rawData.filter((r) => {
+    if (!r.nama || r.nama.trim() === "") return false;
+
+    const match = Object.keys(this.selected).every((k) => {
+      if (this.selected[k].length === 0) return true;
+      if (k === "jenis_ikan") {
+        return this.selected[k].some((val) =>
+          r.jenis_ikan.includes(val)
+        );
+      }
+      return this.selected[k].includes(r[k]);
+    });
+
+    const search =
+      this.searchQuery.trim() === "" ||
+      Object.values(r)
+        .join(" ")
+        .toLowerCase()
+        .includes(this.searchQuery.toLowerCase());
+
+    return match && search;
+  });
+
+  this.updateStats();   // ⬅️ INI YANG HILANG
+},
+
 
           updateStats() {
-            const total = this.totalCount || 1;
-            const f = this.filtered;
-            const sum = (a, k) => a.reduce((t, x) => t + (x[k] || 0), 0);
-            const count = (a, k) => a.filter((x) => x[k] > 0).length;
-            const countNonEmpty = (data, key) => {
-              return data.reduce((total, row) => {
-                const val = row[key];
-                if (
-                  val !== null &&
-                  val !== undefined &&
-                  val.toString().trim() !== ""
-                ) {
-                  return total + 1;
-                }
-                return total;
-              }, 0);
-            };
+  const hasKecFilter = this.selected.kecamatan.length > 0;
+  const hasDesaFilter = this.selected.desa.length > 0;
 
-            const kusuka = count(f, "kusuka");
-            const nib = count(f, "nib");
-            const cpib = countNonEmpty(f, "cpib");
-            const cbib = count(f, "cbib");
-            const kusuka_kelompok = f.reduce((acc, x) => {
-              return acc + (x.kusuka_kelompok ? 1 : 0);
-            }, 0);
-            const kolam = sum(f, "kolam");
-            const lahan = sum(f, "lahan");
-            const produksi = sum(f, "produksi");
+  // DATA STATISTIK: ikut filter wilayah, termasuk baris agregat (tanpa nama)
+  const statData = this.rawData.filter(r => {
+    if (hasKecFilter && !this.selected.kecamatan.includes(r.kecamatan)) {
+      return false;
+    }
+    if (hasDesaFilter && !this.selected.desa.includes(r.desa)) {
+      return false;
+    }
+    return true;
+  });
 
-            this.stats = [
-              {
-                label: "Kusuka",
-                value: kusuka,
-                percent: ((kusuka / total) * 100).toFixed(1),
-              },
-              {
-                label: "NIB",
-                value: nib,
-                percent: ((nib / total) * 100).toFixed(1),
-              },
-              {
-                label: "CPIB",
-                value: cpib,
-                percent: ((cpib / total) * 100).toFixed(1),
-              },
-              {
-                label: "CBIB",
-                value: cbib,
-                percent: ((cbib / total) * 100).toFixed(1),
-              },
-              {
-                label: "Kusuka Kelompok",
-                value: kusuka_kelompok,
-                percent: null,
-              },
-              {
-                label: "Jumlah Kolam",
-                value: kolam.toLocaleString(),
-                percent: null,
-              },
-              {
-                label: "Luas Lahan (m²)",
-                value: lahan.toLocaleString(),
-                percent: null,
-              },
-              { label: "Jumlah Kelompok", value: 0, percent: null },
-              {
-                label: "Produksi (Kg)",
-                value: produksi.toLocaleString(),
-                percent: null,
-              },
-            ];
-            this.updatePieChart(); // ganti nama fungsi agar sesuai pie chart
-          },
+  // DATA PELAKU NYATA (untuk Kusuka, NIB, dll)
+  const pelakuData = statData.filter(r =>
+    r.nama && r.nama.trim() !== ""
+  );
+
+  const total = pelakuData.length || 1;
+
+  const sum = (a, k) => a.reduce((t, x) => t + (x[k] || 0), 0);
+  const count = (a, k) => a.filter(x => x[k] > 0).length;
+  const countNonEmpty = (a, k) =>
+    a.filter(x => x[k] !== null && x[k] !== undefined && x[k].toString().trim() !== "").length;
+
+  const kusuka = count(pelakuData, "kusuka");
+  const nib = count(pelakuData, "nib");
+  const cpib = countNonEmpty(pelakuData, "cpib");
+  const cbib = count(pelakuData, "cbib");
+
+  const kusuka_kelompok = pelakuData.reduce(
+    (acc, x) => acc + (x.kusuka_kelompok ? 1 : 0),
+    0
+  );
+
+  const kolam = sum(statData, "kolam");
+const lahan = sum(statData, "lahan");
+
+
+  // 🔑 PRODUKSI: pakai data agregat + ikut filter kecamatan
+  const produksi = sum(statData, "produksi");
+
+  this.stats = [
+    { label: "Kusuka", value: kusuka, percent: ((kusuka / total) * 100).toFixed(0) },
+    { label: "NIB", value: nib, percent: ((nib / total) * 100).toFixed(0) },
+    { label: "CPIB", value: cpib, percent: ((cpib / total) * 100).toFixed(0) },
+    { label: "CBIB", value: cbib, percent: ((cbib / total) * 100).toFixed(0) },
+    { label: "Kusuka Kelompok", value: kusuka_kelompok, percent: null },
+    { label: "Jumlah Kolam", value: kolam.toLocaleString(), percent: null },
+    { label: "Luas Lahan (m²)", value: lahan.toLocaleString(), percent: null },
+    { label: "Jumlah Kelompok", value: 0, percent: null },
+    { label: "Produksi (Kg)", value: produksi.toLocaleString(), percent: null },
+  ];
+
+  this.updatePieChart();
+},
+
 
           updatePieChart() {
   let filteredData = [...this.filtered];
@@ -1020,8 +1006,9 @@ setInterval(updateClock, 1000);
 
         // 🔧 Perbaikan di sini:
         // Kalau chartFilter = "wadah_budidaya", jumlahkan kolam (bukan hitung baris)
-        groupMap.set(key, groupMap.get(key) + 1);
-        
+        // SEMUA pie chart = hitung pelaku
+groupMap.set(key, groupMap.get(key) + 1);
+
       });
     });
 
@@ -1473,9 +1460,3 @@ if (this.updateGeoFilter) {
   
 </body>
 </html>
-
-
-
-
-
-
