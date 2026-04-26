@@ -180,6 +180,19 @@
           </template>
         </div>
 
+        <div class="mt-4 flex gap-2">
+          <button
+            @click="chartType = 'pie'; updateStats()"
+            :class="chartType === 'pie' ? 'bg-cyan-600 text-white' : 'bg-gray-100 text-gray-600'"
+            class="flex-1 text-xs font-semibold py-1.5 rounded-lg border transition"
+          >🥧 Pie</button>
+          <button
+            @click="chartType = 'bar'; updateStats()"
+            :class="chartType === 'bar' ? 'bg-cyan-600 text-white' : 'bg-gray-100 text-gray-600'"
+            class="flex-1 text-xs font-semibold py-1.5 rounded-lg border transition"
+          >📊 Bar</button>
+        </div>
+
         <canvas id="barChart" class="mt-4"></canvas>
 
         <div class="mt-4 space-y-2">
@@ -204,7 +217,7 @@
           🔍 Filter Utama
         </h2>
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
-          <div x-data="{ open: false }">
+          <div x-data="{ open: false }" class="relative">
             <label class="block text-gray-600 mb-1">Kecamatan</label>
             <div
               @click="open = !open"
@@ -243,7 +256,7 @@
             </div>
           </div>
 
-          <div x-data="{ open: false }">
+          <div x-data="{ open: false }" class="relative">
             <label class="block text-gray-600 mb-1">Desa</label>
             <div
               @click="open = !open"
@@ -282,7 +295,7 @@
             </div>
           </div>
 
-          <div x-data="{ open: false }">
+          <div x-data="{ open: false }" class="relative">
             <label class="block text-gray-600 mb-1">Kelompok</label>
             <div
               @click="open = !open"
@@ -321,7 +334,7 @@
             </div>
           </div>
 
-          <div x-data="{ open: false }">
+          <div x-data="{ open: false }" class="relative">
             <label class="block text-gray-600 mb-1">Jenis Usaha</label>
             <div
               @click="open = !open"
@@ -363,7 +376,7 @@
             </div>
           </div>
 
-          <div x-data="{ open: false }">
+          <div x-data="{ open: false }" class="relative">
             <label class="block text-gray-600 mb-1">Wadah Budidaya</label>
             <div
               @click="open = !open"
@@ -405,7 +418,7 @@
             </div>
           </div>
 
-          <div class="sm:col-span-1" x-data="{ open: false }">
+          <div class="sm:col-span-1 relative" x-data="{ open: false }">
             <label class="block text-gray-600 mb-1">Jenis Ikan</label>
             <div
               @click="open = !open"
@@ -647,6 +660,7 @@
           currentDate: "",
           currentTime: '',
           chartFilter: "", // filter khusus untuk chart
+          chartType: "pie", // tipe chart: pie atau bar
 
           sheetURL:
             "https://docs.google.com/spreadsheets/d/1WvFGRiuiJiGGdhLp1EqtKPhqHi7yNn8UipH_VRK-zFo/gviz/tq?tqx=out:json",
@@ -993,97 +1007,62 @@ setInterval(updateClock, 1000);
           updatePieChart() {
   let filteredData = [...this.filtered];
   const groupKey = this.chartFilter;
+  const type = this.chartType || "pie";
 
   let chartLabels = [];
   let chartData = [];
 
   if (groupKey) {
     const groupMap = new Map();
-
     filteredData.forEach((item) => {
       let keys = [];
-
       if (groupKey === "jenis_ikan") {
-        keys = item.jenis_ikan
-          .split(",")
-          .map((v) => v.trim())
-          .filter((v) => v !== "");
+        keys = item.jenis_ikan.split(",").map((v) => v.trim()).filter((v) => v !== "");
       } else {
         const val = item[groupKey];
-        if (val && val.trim() !== "") {
-          keys = [val.trim()];
-        }
+        if (val && val.trim() !== "") keys = [val.trim()];
       }
-
       keys.forEach((key) => {
-        if (!groupMap.has(key)) {
-          groupMap.set(key, 0);
-        }
-
-        // 🔧 Perbaikan di sini:
-        // Kalau chartFilter = "wadah_budidaya", jumlahkan kolam (bukan hitung baris)
-        groupMap.set(key, groupMap.get(key) + 1);
-        
+        groupMap.set(key, (groupMap.get(key) || 0) + 1);
       });
     });
-
     chartLabels = Array.from(groupMap.keys());
     chartData = Array.from(groupMap.values());
   } else {
-    chartLabels = this.stats
-      .filter(
-        (s) =>
-          s.value !== null &&
-          !["Kusuka Kelompok", "Jumlah Kelompok"].includes(s.label)
-      )
-      .map((s) => s.label);
-
-    chartData = this.stats
-      .filter(
-        (s) =>
-          s.value !== null &&
-          !["Kusuka Kelompok", "Jumlah Kelompok"].includes(s.label)
-      )
-      .map((s) => {
-        const v = s.value;
-        return typeof v === "number"
-          ? v
-          : Number(v.toString().replace(/,/g, "")) || 0;
-      });
+    const excluded = ["Kusuka Kelompok", "Jumlah Kelompok"];
+    chartLabels = this.stats.filter((s) => s.value !== null && !excluded.includes(s.label)).map((s) => s.label);
+    chartData = this.stats.filter((s) => s.value !== null && !excluded.includes(s.label)).map((s) => {
+      const v = s.value;
+      return typeof v === "number" ? v : Number(v.toString().replace(/,/g, "")) || 0;
+    });
   }
 
-  const colors = chartLabels.map(
-    (_, i) => `hsl(${(i * 137.5) % 360}, 70%, 60%)`
-  );
-
-  const isDark =
-    window.matchMedia &&
-    window.matchMedia("(prefers-color-scheme: dark)").matches;
+  const colors = chartLabels.map((_, i) => `hsl(${(i * 137.5) % 360}, 70%, 60%)`);
 
   if (this.barChart) this.barChart.destroy();
-
   Chart.register(ChartDataLabels);
-
   const ctx = document.getElementById("barChart").getContext("2d");
+
+  const isPie = type === "pie";
+
   this.barChart = new Chart(ctx, {
-    type: "pie",
+    type: isPie ? "pie" : "bar",
     data: {
       labels: chartLabels,
-      datasets: [
-        {
-          data: chartData,
-          backgroundColor: colors,
-        },
-      ],
+      datasets: [{
+        data: chartData,
+        backgroundColor: colors,
+        borderColor: isPie ? undefined : colors.map(c => c.replace("60%", "45%")),
+        borderWidth: isPie ? 0 : 1,
+      }],
     },
     options: {
       responsive: true,
+      indexAxis: isPie ? undefined : "y",
       plugins: {
         legend: {
-          labels: {
-            color: "#1f2937",
-            font: { size: 13 },
-          },
+          display: isPie,
+          labels: { color: "#1f2937", font: { size: 13 } },
         },
         tooltip: {
           bodyColor: "#1f2937",
@@ -1091,7 +1070,7 @@ setInterval(updateClock, 1000);
           callbacks: {
             label: function (context) {
               const label = context.label || "";
-              const value = context.parsed || 0;
+              const value = isPie ? (context.parsed || 0) : (context.parsed.x || 0);
               const data = context.chart.data.datasets[0].data;
               const total = data.reduce((sum, val) => sum + val, 0);
               const percent = ((value / total) * 100).toFixed(1);
@@ -1100,18 +1079,33 @@ setInterval(updateClock, 1000);
           },
         },
         datalabels: {
-          color: "#fff",
-          textShadowColor: "rgba(0,0,0,0.6)",
-          textShadowBlur: 4,
+          color: isPie ? "#fff" : "#1f2937",
+          textShadowColor: isPie ? "rgba(0,0,0,0.6)" : undefined,
+          textShadowBlur: isPie ? 4 : undefined,
+          anchor: isPie ? "center" : "end",
+          align: isPie ? "center" : "end",
           formatter: (value, context) => {
-            const total = context.chart.data.datasets[0].data.reduce(
-              (a, b) => a + b,
-              0
-            );
-            const percentage = ((value / total) * 100).toFixed(1);
-            return `${percentage}%`;
+            const total = context.chart.data.datasets[0].data.reduce((a, b) => a + b, 0);
+            const pct = ((value / total) * 100).toFixed(1);
+            return isPie ? `${pct}%` : `${value} (${pct}%)`;
           },
-          font: { weight: "bold", size: 12 },
+          font: { weight: "bold", size: isPie ? 12 : 10 },
+          display: (context) => {
+            if (!isPie) return true;
+            const total = context.chart.data.datasets[0].data.reduce((a, b) => a + b, 0);
+            return (context.dataset.data[context.dataIndex] / total) >= 0.03;
+          },
+        },
+      },
+      scales: isPie ? {} : {
+        x: {
+          beginAtZero: true,
+          ticks: { color: "#1f2937", font: { size: 10 } },
+          grid: { color: "#e5e7eb" },
+        },
+        y: {
+          ticks: { color: "#1f2937", font: { size: 10 } },
+          grid: { display: false },
         },
       },
     },
