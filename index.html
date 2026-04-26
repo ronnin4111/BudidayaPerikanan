@@ -884,30 +884,40 @@ setInterval(updateClock, 1000);
               Array.from(new Set(a.filter((v) => v))).sort((a, b) =>
                 a.localeCompare(b)
               );
-            let filteredData = [...this.rawData];
-            if (this.selected.kecamatan.length > 0)
-              filteredData = filteredData.filter((r) =>
-                this.selected.kecamatan.includes(r.kecamatan)
-              );
+
+            // Kecamatan: selalu dari semua data
             this.filtersDef.kecamatan.options = uniq(
               this.rawData.map((r) => r.kecamatan)
             );
-            this.filtersDef.desa.options = uniq(
-              filteredData.map((r) => r.desa)
-            );
-            this.filtersDef.kelompok.options = uniq(
-              this.rawData.map((r) => r.kelompok)
-            );
-            this.filtersDef.jenis_usaha.options = uniq(
-              this.rawData.map((r) => r.jenis_usaha)
-            );
-            this.filtersDef.wadah_budidaya.options = uniq(
-              this.rawData.map((r) => r.wadah_budidaya)
-            );
+
+            // Filter bertingkat (cascading):
+            // Setiap level hanya menampilkan opsi yang relevan dengan pilihan di level atasnya
+
+            let d1 = [...this.rawData];
+            if (this.selected.kecamatan.length > 0)
+              d1 = d1.filter((r) => this.selected.kecamatan.includes(r.kecamatan));
+            this.filtersDef.desa.options = uniq(d1.map((r) => r.desa));
+
+            let d2 = [...d1];
+            if (this.selected.desa.length > 0)
+              d2 = d2.filter((r) => this.selected.desa.includes(r.desa));
+            this.filtersDef.kelompok.options = uniq(d2.map((r) => r.kelompok));
+
+            let d3 = [...d2];
+            if (this.selected.kelompok.length > 0)
+              d3 = d3.filter((r) => this.selected.kelompok.includes(r.kelompok));
+            this.filtersDef.jenis_usaha.options = uniq(d3.map((r) => r.jenis_usaha));
+
+            let d4 = [...d3];
+            if (this.selected.jenis_usaha.length > 0)
+              d4 = d4.filter((r) => this.selected.jenis_usaha.includes(r.jenis_usaha));
+            this.filtersDef.wadah_budidaya.options = uniq(d4.map((r) => r.wadah_budidaya));
+
+            let d5 = [...d4];
+            if (this.selected.wadah_budidaya.length > 0)
+              d5 = d5.filter((r) => this.selected.wadah_budidaya.includes(r.wadah_budidaya));
             this.filtersDef.jenis_ikan.options = uniq(
-              this.rawData
-                .flatMap((r) => r.jenis_ikan.split(",").map((v) => v.trim()))
-                .filter((v) => v)
+              d5.flatMap((r) => r.jenis_ikan.split(",").map((v) => v.trim())).filter((v) => v)
             );
           },
 
