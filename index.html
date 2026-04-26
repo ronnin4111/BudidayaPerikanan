@@ -188,180 +188,99 @@
           🕒 <span x-text="currentDate"></span><br>
           <span x-text="currentTime"></span>
         </div>
-        <!-- Tombol untuk Mobile -->
-        <div class="flex gap-2 md:hidden">
-          <button
-            @click="statsOpen = true; filterOpen = false"
-            class="bg-cyan-700 hover:bg-cyan-800 text-white rounded-lg px-2 py-1.5 text-xs font-semibold"
-          >📊 Statistik</button>
-          <button
-            @click="filterOpen = true; statsOpen = false"
-            class="bg-cyan-700 hover:bg-cyan-800 text-white rounded-lg px-2 py-1.5 text-xs font-semibold"
-          >🔍 Filter</button>
-        </div>
+        <!-- Tombol Filter untuk Mobile -->
+        <button
+          @click="sidebarOpen = true"
+          class="md:hidden bg-cyan-700 hover:bg-cyan-800 text-white rounded-lg px-3 py-2 text-sm font-semibold flex items-center gap-1 flex-shrink-0"
+        >
+          🔍 Filter
+        </button>
       </div>
     </header>
 
-    <div class="max-w-7xl mx-auto mt-4 px-3 md:px-4 flex gap-4 items-start">
+    <div class="max-w-7xl mx-auto mt-4 px-3 md:px-4 md:grid md:grid-cols-4 gap-4">
 
-      <!-- OVERLAY mobile (stats) -->
-      <div class="sidebar-overlay md:hidden" x-show="statsOpen && !$el.closest('[data-desktop]')" x-cloak @click="statsOpen = false"></div>
-      <!-- OVERLAY mobile (filter) -->
-      <div class="sidebar-overlay md:hidden" x-show="filterOpen && !$el.closest('[data-desktop]')" x-cloak @click="filterOpen = false"></div>
-
-      <!-- ===== SIDEBAR KIRI: STATISTIK ===== -->
-      <!-- Mobile drawer -->
+      <!-- OVERLAY saat sidebar terbuka di mobile -->
       <div
-        class="sidebar-mobile-open md:hidden bg-white p-4 overflow-y-auto"
-        x-show="statsOpen"
+        class="sidebar-overlay md:hidden"
+        x-show="sidebarOpen"
         x-cloak
-        style="z-index:7001;"
-      >
-        <div class="flex items-center justify-between mb-3">
-          <span class="text-cyan-700 font-semibold text-base">📊 Statistik</span>
-          <button @click="statsOpen = false" class="text-gray-400 hover:text-gray-600 text-2xl leading-none">&times;</button>
-        </div>
-        <!-- Statistik content (mobile) -->
-        <div x-html="''" x-init="$el.innerHTML = document.getElementById('stats-content').innerHTML"></div>
-      </div>
+        @click="sidebarOpen = false"
+      ></div>
 
-      <!-- Desktop panel Statistik -->
+      <!-- SIDEBAR KIRI -->
       <aside
-        class="hidden md:flex flex-col bg-white rounded-xl shadow transition-all duration-300"
-        :style="statsOpen ? 'width:260px;min-width:260px;' : 'width:40px;min-width:40px;'"
+        :class="sidebarOpen ? 'sidebar-mobile-open' : 'hidden md:block'"
+        class="bg-white rounded-xl shadow md:col-span-1 overflow-hidden"
       >
-        <!-- Header panel -->
-        <div class="flex items-center justify-between px-3 py-3 border-b cursor-pointer select-none" @click="statsOpen = !statsOpen">
-          <span class="text-cyan-700 font-semibold text-sm whitespace-nowrap overflow-hidden" x-show="statsOpen">📊 Statistik</span>
-          <span class="text-cyan-700 font-semibold text-sm" x-show="!statsOpen" style="writing-mode:vertical-rl;transform:rotate(180deg);margin:auto;">📊 Statistik</span>
-          <span class="text-cyan-600 text-lg ml-1" x-show="statsOpen">‹</span>
-          <span class="text-cyan-600 text-lg" x-show="!statsOpen">›</span>
-        </div>
-        <!-- Isi panel -->
-        <div x-show="statsOpen" class="p-4 space-y-4 overflow-y-auto" id="stats-content">
-
-          <div class="grid grid-cols-1 gap-2 text-sm">
-            <template x-for="stat in stats" :key="stat.label">
-              <div class="flex justify-between border-b pb-1">
-                <span class="font-medium" x-text="stat.label"></span>
-                <span>
-                  <b x-text="stat.value"></b>
-                  <template x-if="stat.percent !== null">
-                    <span class="text-gray-500 text-xs"> (<span x-text="stat.percent"></span>%)</span>
-                  </template>
-                </span>
-              </div>
-            </template>
-          </div>
-
-          <div class="flex gap-2">
-            <button @click="chartType = 'pie'; updateStats()"
-              :class="chartType === 'pie' ? 'bg-cyan-600 text-white' : 'bg-gray-100 text-gray-600'"
-              class="flex-1 text-xs font-semibold py-1.5 rounded-lg border transition">🥧 Pie</button>
-            <button @click="chartType = 'bar'; updateStats()"
-              :class="chartType === 'bar' ? 'bg-cyan-600 text-white' : 'bg-gray-100 text-gray-600'"
-              class="flex-1 text-xs font-semibold py-1.5 rounded-lg border transition">📊 Bar</button>
-          </div>
-
-          <canvas id="barChart"></canvas>
-
-          <div class="space-y-1">
-            <label class="block text-xs text-gray-500">Tampilkan Chart Berdasarkan:</label>
-            <select x-model="chartFilter" @change="updateStats" class="w-full border rounded p-2 text-sm">
-              <option value="">-- Semua Data --</option>
-              <option value="jenis_usaha">Jenis Usaha</option>
-              <option value="jenis_ikan">Jenis Ikan</option>
-              <option value="wadah_budidaya">Wadah Budidaya</option>
-            </select>
-          </div>
-        </div>
-      </aside>
-
-      <!-- ===== MAIN CONTENT ===== -->
-      <main class="flex-1 min-w-0 bg-white rounded-xl shadow p-3 md:p-4 overflow-x-auto pb-20">
-        <div class="flex flex-col md:flex-row md:items-center md:justify-between mb-3 gap-3">
-          <input
-            type="text"
-            placeholder="🔍 Cari nama, kelompok, desa..."
-            class="border rounded-lg p-2 text-sm w-full md:w-64 focus:outline-none focus:ring focus:ring-cyan-300"
-            x-model="searchQuery"
-            @input="applyFilters"
-          />
-          <div class="flex gap-2">
-            <button @click="downloadExcel"
-              class="bg-emerald-600 text-white px-3 py-2 rounded-lg text-sm hover:bg-emerald-700 transition">
-              📥 Excel
-            </button>
-            <button @click="downloadPDF"
-              class="bg-red-600 text-white px-3 py-2 rounded-lg text-sm hover:bg-red-700 transition">
-              📄 PDF
-            </button>
-          </div>
+        <!-- Tombol tutup (mobile) -->
+        <div class="flex items-center justify-between p-4 md:hidden border-b">
+          <span class="text-cyan-700 font-semibold">📊 Statistik & 🔍 Filter</span>
+          <button @click="sidebarOpen = false" class="text-gray-400 hover:text-gray-600 text-2xl leading-none">&times;</button>
         </div>
 
-        <!-- === PETA === -->
-        <div id="map" class="relative rounded-xl overflow-hidden mb-3">
+        <!-- ===== PANEL STATISTIK ===== -->
+        <div class="border-b">
+          <!-- Header Statistik — klik untuk collapse -->
           <button
-            id="toggleLegendBtn"
-            class="absolute bottom-3 left-3 z-[2000] bg-cyan-600 text-white rounded-full w-11 h-11 flex items-center justify-center shadow-lg hover:bg-cyan-700 transition-all duration-500 md:hidden translate-y-8 opacity-0"
-            onclick="toggleLegend()"
-            title="Tampilkan / Sembunyikan legenda"
-          >🗺️</button>
-        </div>
-
-        <!-- === TABEL === -->
-        <div class="flex justify-between items-center mb-2">
-          <h3 class="text-cyan-700 font-semibold text-lg">Data Pelaku Usaha</h3>
-          <span class="text-sm text-gray-600">Total: <b x-text="filtered.length"></b> Orang</span>
-        </div>
-
-        <div class="overflow-auto" style="max-height:450px;max-width:100%">
-          <table class="text-sm border-collapse table-auto w-max min-w-full">
-            <thead class="bg-cyan-600 text-white">
-              <tr>
-                <th class="p-2 text-left sticky top-0 bg-cyan-600 z-10 whitespace-nowrap">Nama</th>
-                <th class="p-2 text-left sticky top-0 bg-cyan-600 z-10 whitespace-nowrap">Kelompok</th>
-                <th class="p-2 text-left sticky top-0 bg-cyan-600 z-10 whitespace-nowrap">Kecamatan</th>
-                <th class="p-2 text-left sticky top-0 bg-cyan-600 z-10 whitespace-nowrap">Desa</th>
-                <th class="p-2 text-left sticky top-0 bg-cyan-600 z-10 whitespace-nowrap">Jenis Usaha</th>
-                <th class="p-2 text-left sticky top-0 bg-cyan-600 z-10 whitespace-nowrap">Wadah Budidaya</th>
-                <th class="p-2 text-left sticky top-0 bg-cyan-600 z-10 whitespace-nowrap">Jenis Ikan</th>
-                <th class="p-2 text-right sticky top-0 bg-cyan-600 z-10 whitespace-nowrap hidden">Produksi (Kg)</th>
-                <th class="p-2 text-center sticky top-0 bg-cyan-600 z-10 whitespace-nowrap hidden">KUSUKA</th>
-                <th class="p-2 text-center sticky top-0 bg-cyan-600 z-10 whitespace-nowrap hidden">NIB</th>
-                <th class="p-2 text-center sticky top-0 bg-cyan-600 z-10 whitespace-nowrap hidden">CPIB</th>
-                <th class="p-2 text-center sticky top-0 bg-cyan-600 z-10 whitespace-nowrap hidden">CBIB</th>
-                <th class="p-2 text-right sticky top-0 bg-cyan-600 z-10 whitespace-nowrap hidden">Jumlah Kolam</th>
-                <th class="p-2 text-right sticky top-0 bg-cyan-600 z-10 whitespace-nowrap hidden">Luas Lahan (m²)</th>
-              </tr>
-            </thead>
-            <tbody>
-              <template x-for="(row, i) in filtered" :key="i">
-                <tr class="hover:bg-cyan-50">
-                  <td class="p-2 whitespace-nowrap" x-text="row.nama"></td>
-                  <td class="p-2 whitespace-nowrap" x-text="row.kelompok"></td>
-                  <td class="p-2 whitespace-nowrap" x-text="row.kecamatan"></td>
-                  <td class="p-2 whitespace-nowrap" x-text="row.desa"></td>
-                  <td class="p-2 whitespace-nowrap" x-text="row.jenis_usaha"></td>
-                  <td class="p-2 whitespace-nowrap" x-text="row.wadah_budidaya"></td>
-                  <td class="p-2 whitespace-nowrap" x-text="row.jenis_ikan"></td>
-                  <td class="p-2 text-right whitespace-nowrap hidden" x-text="(row.produksi || 0).toLocaleString()"></td>
-                  <td class="p-2 text-center whitespace-nowrap hidden" x-text="row.kusuka || '-'"></td>
-                  <td class="p-2 text-center whitespace-nowrap hidden" x-text="row.nib ? '✅' : '-'"></td>
-                  <td class="p-2 text-center whitespace-nowrap hidden" x-text="row.cpib ? '✅' : '-'"></td>
-                  <td class="p-2 text-center whitespace-nowrap hidden" x-text="row.cbib ? '✅' : '-'"></td>
-                  <td class="p-2 text-right whitespace-nowrap hidden" x-text="(row.kolam || 0).toLocaleString()"></td>
-                  <td class="p-2 text-right whitespace-nowrap hidden" x-text="(row.lahan || 0).toLocaleString()"></td>
-                </tr>
+            @click="statsOpen = !statsOpen"
+            class="w-full flex items-center justify-between px-4 py-3 hover:bg-cyan-50 transition"
+          >
+            <span class="text-cyan-700 font-semibold text-sm">📊 Statistik</span>
+            <span class="text-cyan-600 text-lg" x-text="statsOpen ? '▲' : '▼'"></span>
+          </button>
+          <!-- Konten Statistik -->
+          <div x-show="statsOpen" x-cloak class="px-4 pb-4 space-y-3">
+            <div class="grid grid-cols-1 gap-2 text-sm">
+              <template x-for="stat in stats" :key="stat.label">
+                <div class="flex justify-between border-b pb-1">
+                  <span class="font-medium" x-text="stat.label"></span>
+                  <span>
+                    <b x-text="stat.value"></b>
+                    <template x-if="stat.percent !== null">
+                      <span class="text-gray-500 text-xs"> (<span x-text="stat.percent"></span>%)</span>
+                    </template>
+                  </span>
+                </div>
               </template>
-              <tr x-show="filtered.length === 0">
-                <td colspan="14" class="text-center text-gray-500 p-4">Tidak ada data</td>
-              </tr>
-            </tbody>
-          </table>
+            </div>
+
+            <div class="flex gap-2">
+              <button @click="chartType = 'pie'; updateStats()"
+                :class="chartType === 'pie' ? 'bg-cyan-600 text-white' : 'bg-gray-100 text-gray-600'"
+                class="flex-1 text-xs font-semibold py-1.5 rounded-lg border transition">🥧 Pie</button>
+              <button @click="chartType = 'bar'; updateStats()"
+                :class="chartType === 'bar' ? 'bg-cyan-600 text-white' : 'bg-gray-100 text-gray-600'"
+                class="flex-1 text-xs font-semibold py-1.5 rounded-lg border transition">📊 Bar</button>
+            </div>
+
+            <canvas id="barChart"></canvas>
+
+            <div class="space-y-1">
+              <label class="block text-xs text-gray-500">Tampilkan Chart Berdasarkan:</label>
+              <select x-model="chartFilter" @change="updateStats" class="w-full border rounded p-2 text-sm">
+                <option value="">-- Semua Data --</option>
+                <option value="jenis_usaha">Jenis Usaha</option>
+                <option value="jenis_ikan">Jenis Ikan</option>
+                <option value="wadah_budidaya">Wadah Budidaya</option>
+              </select>
+            </div>
+          </div>
         </div>
 
-      </main>
+        <!-- ===== PANEL FILTER ===== -->
+        <div>
+          <!-- Header Filter — klik untuk collapse -->
+          <button
+            @click="filterOpen = !filterOpen"
+            class="w-full flex items-center justify-between px-4 py-3 hover:bg-cyan-50 transition"
+          >
+            <span class="text-cyan-700 font-semibold text-sm">🔍 Filter Utama</span>
+            <span class="text-cyan-600 text-lg" x-text="filterOpen ? '▲' : '▼'"></span>
+          </button>
+          <!-- Konten Filter -->
+          <div x-show="filterOpen" x-cloak class="px-4 pb-4">
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
           <div x-data="{ open: false }" class="relative">
             <label class="block text-gray-600 mb-1">Kecamatan</label>
             <div
@@ -614,156 +533,201 @@
           <!-- Tombol Terapkan Filter (mobile only) -->
           <div class="md:hidden pt-2">
             <button
-              @click="filterOpen = false"
+              @click="sidebarOpen = false"
               class="w-full bg-cyan-600 hover:bg-cyan-700 text-white font-semibold rounded-lg py-2.5 text-sm transition"
             >
               ✅ Terapkan Filter
             </button>
           </div>
-        </div>
-      </main>
-
-      <!-- ===== SIDEBAR KANAN: FILTER ===== -->
-      <!-- Mobile drawer filter -->
-      <div
-        class="sidebar-mobile-open md:hidden bg-white p-4 overflow-y-auto"
-        x-show="filterOpen"
-        x-cloak
-        style="z-index:7001;"
-      >
-        <div class="flex items-center justify-between mb-3">
-          <span class="text-cyan-700 font-semibold text-base">🔍 Filter Utama</span>
-          <button @click="filterOpen = false" class="text-gray-400 hover:text-gray-600 text-2xl leading-none">&times;</button>
-        </div>
-        <!-- Filter content mobile -->
-        <div class="grid grid-cols-1 gap-4 text-sm" x-html="document.getElementById('filter-content').innerHTML"></div>
-        <button @click="filterOpen = false"
-          class="w-full mt-4 bg-cyan-600 hover:bg-cyan-700 text-white font-semibold rounded-lg py-2.5 text-sm transition">
-          ✅ Terapkan Filter
-        </button>
-      </div>
-
-      <!-- Desktop panel Filter -->
-      <aside
-        class="hidden md:flex flex-col bg-white rounded-xl shadow transition-all duration-300"
-        :style="filterOpen ? 'width:260px;min-width:260px;' : 'width:40px;min-width:40px;'"
-      >
-        <!-- Header panel -->
-        <div class="flex items-center justify-between px-3 py-3 border-b cursor-pointer select-none" @click="filterOpen = !filterOpen">
-          <span class="text-cyan-700 text-lg ml-1" x-show="!filterOpen">‹</span>
-          <span class="text-cyan-700 font-semibold text-sm whitespace-nowrap overflow-hidden" x-show="filterOpen">🔍 Filter Utama</span>
-          <span class="text-cyan-600 text-lg ml-1" x-show="filterOpen">›</span>
-          <span class="text-cyan-700 font-semibold text-sm" x-show="!filterOpen" style="writing-mode:vertical-rl;transform:rotate(180deg);margin:auto;">🔍 Filter</span>
-        </div>
-        <!-- Isi panel filter -->
-        <div x-show="filterOpen" class="p-4 overflow-y-auto space-y-4" id="filter-content">
-          <div class="grid grid-cols-1 gap-4 text-sm">
-
-            <div x-data="{ open: false }" class="relative">
-              <label class="block text-gray-600 mb-1 text-xs font-semibold">Kecamatan</label>
-              <div @click="open = !open" class="border rounded p-2 cursor-pointer bg-white hover:bg-cyan-50 text-sm">
-                <template x-if="selected.kecamatan.length === 0"><span class="text-gray-400">Pilih...</span></template>
-                <template x-if="selected.kecamatan.length > 0"><span class="text-cyan-700 font-medium text-xs" x-text="selected.kecamatan.join(', ')"></span></template>
-              </div>
-              <div x-show="open" x-cloak @click.outside="open = false" class="absolute z-20 bg-white border rounded shadow mt-1 w-full max-h-48 overflow-y-auto">
-                <template x-for="opt in filtersDef.kecamatan.options" :key="opt">
-                  <label class="flex items-center px-2 py-1 hover:bg-cyan-50 cursor-pointer text-sm">
-                    <input type="checkbox" class="mr-2" :value="opt" @change="toggleSelect('kecamatan', opt)" :checked="selected.kecamatan.includes(opt)" />
-                    <span x-text="opt"></span>
-                  </label>
-                </template>
-              </div>
-            </div>
-
-            <div x-data="{ open: false }" class="relative">
-              <label class="block text-gray-600 mb-1 text-xs font-semibold">Desa</label>
-              <div @click="open = !open" class="border rounded p-2 cursor-pointer bg-white hover:bg-cyan-50 text-sm">
-                <template x-if="selected.desa.length === 0"><span class="text-gray-400">Pilih...</span></template>
-                <template x-if="selected.desa.length > 0"><span class="text-cyan-700 font-medium text-xs" x-text="selected.desa.join(', ')"></span></template>
-              </div>
-              <div x-show="open" x-cloak @click.outside="open = false" class="absolute z-20 bg-white border rounded shadow mt-1 w-full max-h-48 overflow-y-auto">
-                <template x-for="opt in filtersDef.desa.options" :key="opt">
-                  <label class="flex items-center px-2 py-1 hover:bg-cyan-50 cursor-pointer text-sm">
-                    <input type="checkbox" class="mr-2" :value="opt" @change="toggleSelect('desa', opt)" :checked="selected.desa.includes(opt)" />
-                    <span x-text="opt"></span>
-                  </label>
-                </template>
-              </div>
-            </div>
-
-            <div x-data="{ open: false }" class="relative">
-              <label class="block text-gray-600 mb-1 text-xs font-semibold">Kelompok</label>
-              <div @click="open = !open" class="border rounded p-2 cursor-pointer bg-white hover:bg-cyan-50 text-sm">
-                <template x-if="selected.kelompok.length === 0"><span class="text-gray-400">Pilih...</span></template>
-                <template x-if="selected.kelompok.length > 0"><span class="text-cyan-700 font-medium text-xs" x-text="selected.kelompok.join(', ')"></span></template>
-              </div>
-              <div x-show="open" x-cloak @click.outside="open = false" class="absolute z-20 bg-white border rounded shadow mt-1 w-full max-h-48 overflow-y-auto">
-                <template x-for="opt in filtersDef.kelompok.options" :key="opt">
-                  <label class="flex items-center px-2 py-1 hover:bg-cyan-50 cursor-pointer text-sm">
-                    <input type="checkbox" class="mr-2" :value="opt" @change="toggleSelect('kelompok', opt)" :checked="selected.kelompok.includes(opt)" />
-                    <span x-text="opt"></span>
-                  </label>
-                </template>
-              </div>
-            </div>
-
-            <div x-data="{ open: false }" class="relative">
-              <label class="block text-gray-600 mb-1 text-xs font-semibold">Jenis Usaha</label>
-              <div @click="open = !open" class="border rounded p-2 cursor-pointer bg-white hover:bg-cyan-50 text-sm">
-                <template x-if="selected.jenis_usaha.length === 0"><span class="text-gray-400">Pilih...</span></template>
-                <template x-if="selected.jenis_usaha.length > 0"><span class="text-cyan-700 font-medium text-xs" x-text="selected.jenis_usaha.join(', ')"></span></template>
-              </div>
-              <div x-show="open" x-cloak @click.outside="open = false" class="absolute z-20 bg-white border rounded shadow mt-1 w-full max-h-48 overflow-y-auto">
-                <template x-for="opt in filtersDef.jenis_usaha.options" :key="opt">
-                  <label class="flex items-center px-2 py-1 hover:bg-cyan-50 cursor-pointer text-sm">
-                    <input type="checkbox" class="mr-2" :value="opt" @change="toggleSelect('jenis_usaha', opt)" :checked="selected.jenis_usaha.includes(opt)" />
-                    <span x-text="opt"></span>
-                  </label>
-                </template>
-              </div>
-            </div>
-
-            <div x-data="{ open: false }" class="relative">
-              <label class="block text-gray-600 mb-1 text-xs font-semibold">Wadah Budidaya</label>
-              <div @click="open = !open" class="border rounded p-2 cursor-pointer bg-white hover:bg-cyan-50 text-sm">
-                <template x-if="selected.wadah_budidaya.length === 0"><span class="text-gray-400">Pilih...</span></template>
-                <template x-if="selected.wadah_budidaya.length > 0"><span class="text-cyan-700 font-medium text-xs" x-text="selected.wadah_budidaya.join(', ')"></span></template>
-              </div>
-              <div x-show="open" x-cloak @click.outside="open = false" class="absolute z-20 bg-white border rounded shadow mt-1 w-full max-h-48 overflow-y-auto">
-                <template x-for="opt in filtersDef.wadah_budidaya.options" :key="opt">
-                  <label class="flex items-center px-2 py-1 hover:bg-cyan-50 cursor-pointer text-sm">
-                    <input type="checkbox" class="mr-2" :value="opt" @change="toggleSelect('wadah_budidaya', opt)" :checked="selected.wadah_budidaya.includes(opt)" />
-                    <span x-text="opt"></span>
-                  </label>
-                </template>
-              </div>
-            </div>
-
-            <div x-data="{ open: false }" class="relative">
-              <label class="block text-gray-600 mb-1 text-xs font-semibold">Jenis Ikan</label>
-              <div @click="open = !open" class="border rounded p-2 cursor-pointer bg-white hover:bg-cyan-50 text-sm">
-                <template x-if="selected.jenis_ikan.length === 0"><span class="text-gray-400">Pilih...</span></template>
-                <template x-if="selected.jenis_ikan.length > 0"><span class="text-cyan-700 font-medium text-xs" x-text="selected.jenis_ikan.join(', ')"></span></template>
-              </div>
-              <div x-show="open" x-cloak @click.outside="open = false" class="absolute z-20 bg-white border rounded shadow mt-1 w-full max-h-48 overflow-y-auto">
-                <template x-for="opt in filtersDef.jenis_ikan.options" :key="opt">
-                  <label class="flex items-center px-2 py-1 hover:bg-cyan-50 cursor-pointer text-sm">
-                    <input type="checkbox" class="mr-2" :value="opt" @change="toggleSelect('jenis_ikan', opt)" :checked="selected.jenis_ikan.includes(opt)" />
-                    <span x-text="opt"></span>
-                  </label>
-                </template>
-              </div>
-            </div>
-
-            <button @click="resetFilters"
-              class="w-full bg-gray-200 hover:bg-gray-300 rounded py-2 px-4 text-sm">
-              🔄 Reset Filter
-            </button>
-
-          </div>
-        </div>
+          </div><!-- end filter content -->
+        </div><!-- end panel filter -->
       </aside>
 
+      <!-- MAIN -->
+      <main class="md:col-span-3 bg-white rounded-xl shadow p-3 md:p-4 overflow-x-auto pb-20 mt-4 md:mt-0">
+        <div
+          class="flex flex-col md:flex-row md:items-center md:justify-between mb-3 gap-3"
+        >
+          <input
+            type="text"
+            placeholder="🔍 Cari nama, kelompok, desa..."
+            class="border rounded-lg p-2 text-sm w-64 focus:outline-none focus:ring focus:ring-cyan-300"
+            x-model="searchQuery"
+            @input="applyFilters"
+          />
+
+          <div class="flex gap-2">
+            <button
+              @click="downloadExcel"
+              class="bg-emerald-600 text-white px-3 py-2 rounded-lg text-sm hover:bg-emerald-700 transition flex items-center gap-1"
+            >
+              📥 Excel
+            </button>
+            <button
+              @click="downloadPDF"
+              class="bg-red-600 text-white px-3 py-2 rounded-lg text-sm hover:bg-red-700 transition flex items-center gap-1"
+            >
+              📄 PDF
+            </button>
+          </div>
+        </div>
+
+        <!-- === MAP + Tombol Toggle Legend === -->
+        <div id="map" class="relative rounded-xl overflow-hidden" style="margin-bottom: 0;">
+          <!-- Tombol Toggle Legend (pojok kiri bawah + animasi slide-up) -->
+<button 
+  id="toggleLegendBtn"
+  class="absolute bottom-3 left-3 z-[2000] bg-cyan-600 text-white rounded-full w-11 h-11 flex items-center justify-center shadow-lg hover:bg-cyan-700 transition-all duration-500 md:hidden translate-y-8 opacity-0"
+  onclick="toggleLegend()"
+  title="Tampilkan / Sembunyikan legenda"
+>
+  🗺️
+</button>
+
+        </div>
+
+
+        <div class="flex justify-between items-center mb-2">
+          <h3 class="text-cyan-700 font-semibold text-lg">Data Pelaku Usaha</h3>
+          <span class="text-sm text-gray-600"
+            >Total: <b x-text="filtered.length"></b> Orang</span
+          >
+        </div>
+
+        <div class="overflow-auto" style="max-height: 450px; max-width: 100%">
+          <table class="text-sm border-collapse table-auto w-max min-w-full">
+            <thead class="bg-cyan-600 text-white">
+              <tr>
+                <th
+                  class="p-2 text-left sticky top-0 bg-cyan-600 z-10 whitespace-nowrap"
+                >
+                  Nama
+                </th>
+                <th
+                  class="p-2 text-left sticky top-0 bg-cyan-600 z-10 whitespace-nowrap"
+                >
+                  Kelompok
+                </th>
+                <th
+                  class="p-2 text-left sticky top-0 bg-cyan-600 z-10 whitespace-nowrap"
+                >
+                  Kecamatan
+                </th>
+                <th
+                  class="p-2 text-left sticky top-0 bg-cyan-600 z-10 whitespace-nowrap"
+                >
+                  Desa
+                </th>
+                <th
+                  class="p-2 text-left sticky top-0 bg-cyan-600 z-10 whitespace-nowrap"
+                >
+                  Jenis Usaha
+                </th>
+                <th
+                  class="p-2 text-left sticky top-0 bg-cyan-600 z-10 whitespace-nowrap"
+                >
+                  Wadah Budidaya
+                </th>
+                <th
+                  class="p-2 text-left sticky top-0 bg-cyan-600 z-10 whitespace-nowrap"
+                >
+                  Jenis Ikan
+                </th>
+                <th
+                  class="p-2 text-right sticky top-0 bg-cyan-600 z-10 whitespace-nowrap hidden"
+                >
+                  Produksi (Kg)
+                </th>
+                <th
+                  class="p-2 text-center sticky top-0 bg-cyan-600 z-10 whitespace-nowrap hidden"
+                >
+                  KUSUKA
+                </th>
+                <th
+                  class="p-2 text-center sticky top-0 bg-cyan-600 z-10 whitespace-nowrap hidden"
+                >
+                  NIB
+                </th>
+                <th
+                  class="p-2 text-center sticky top-0 bg-cyan-600 z-10 whitespace-nowrap hidden"
+                >
+                  CPIB
+                </th>
+                <th
+                  class="p-2 text-center sticky top-0 bg-cyan-600 z-10 whitespace-nowrap hidden"
+                >
+                  CBIB
+                </th>
+                <th
+                  class="p-2 text-right sticky top-0 bg-cyan-600 z-10 whitespace-nowrap hidden"
+                >
+                  Jumlah Kolam
+                </th>
+                <th
+                  class="p-2 text-right sticky top-0 bg-cyan-600 z-10 whitespace-nowrap hidden"
+                >
+                  Luas Lahan (m²)
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              <template x-for="(row, i) in filtered" :key="i">
+                <tr class="hover:bg-cyan-50">
+                  <td class="p-2 whitespace-nowrap" x-text="row.nama"></td>
+                  <td class="p-2 whitespace-nowrap" x-text="row.kelompok"></td>
+                  <td class="p-2 whitespace-nowrap" x-text="row.kecamatan"></td>
+                  <td class="p-2 whitespace-nowrap" x-text="row.desa"></td>
+                  <td
+                    class="p-2 whitespace-nowrap"
+                    x-text="row.jenis_usaha"
+                  ></td>
+                  <td
+                    class="p-2 whitespace-nowrap"
+                    x-text="row.wadah_budidaya"
+                  ></td>
+                  <td
+                    class="p-2 whitespace-nowrap"
+                    x-text="row.jenis_ikan"
+                  ></td>
+                  <td
+                    class="p-2 text-right whitespace-nowrap hidden"
+                    x-text="(row.produksi || 0).toLocaleString()"
+                  ></td>
+                  <td
+                    class="p-2 text-center whitespace-nowrap hidden"
+                    x-text="row.kusuka || '-'"
+                  ></td>
+                  <td
+                    class="p-2 text-center whitespace-nowrap hidden"
+                    x-text="row.nib ? '✅' : '-'"
+                  ></td>
+                  <td
+                    class="p-2 text-center whitespace-nowrap hidden"
+                    x-text="row.cpib ? '✅' : '-'"
+                  ></td>
+                  <td
+                    class="p-2 text-center whitespace-nowrap hidden"
+                    x-text="row.cbib ? '✅' : '-'"
+                  ></td>
+                  <td
+                    class="p-2 text-right whitespace-nowrap hidden"
+                    x-text="(row.kolam || 0).toLocaleString()"
+                  ></td>
+                  <td
+                    class="p-2 text-right whitespace-nowrap hidden"
+                    x-text="(row.lahan || 0).toLocaleString()"
+                  ></td>
+                </tr>
+              </template>
+              <tr x-show="filtered.length === 0">
+                <td colspan="14" class="text-center text-gray-500 p-4">
+                  Tidak ada data
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </main>
     </div>
     <footer class="text-center py-5 px-4 mt-6 text-sm text-gray-600 bg-cyan-50 rounded-t-2xl shadow-inner">
   © 2025 <b>PERIKANAN BUDIDAYA</b> — Dinas Pertanian Ketahanan Pangan dan Perikanan
