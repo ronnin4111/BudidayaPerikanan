@@ -26,6 +26,9 @@
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2"></script>
     <!-- Turf.js for area calculations -->
     <script src="https://cdn.jsdelivr.net/npm/@turf/turf@6/turf.min.js"></script>
+    <!-- jsPDF + AutoTable untuk PDF -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
 
     <style>
       body {
@@ -484,12 +487,20 @@
             @input="applyFilters"
           />
 
-          <button
-            @click="downloadExcel"
-            class="bg-cyan-600 text-white px-3 py-2 rounded-lg text-sm hover:bg-cyan-700 transition"
-          >
-            💾 Download Excel
-          </button>
+          <div class="flex gap-2">
+            <button
+              @click="downloadExcel"
+              class="bg-emerald-600 text-white px-3 py-2 rounded-lg text-sm hover:bg-emerald-700 transition flex items-center gap-1"
+            >
+              📥 Excel
+            </button>
+            <button
+              @click="downloadPDF"
+              class="bg-red-600 text-white px-3 py-2 rounded-lg text-sm hover:bg-red-700 transition flex items-center gap-1"
+            >
+              📄 PDF
+            </button>
+          </div>
         </div>
 
         <!-- === MAP + Tombol Toggle Legend === -->
@@ -1142,26 +1153,112 @@ setInterval(updateClock, 1000);
               return;
             }
 
-            const exportData = this.filtered.map((row) => {
-              return {
-                ...row,
-                kusuka: row.kusuka ? `'${row.kusuka.toString()}` : "",
-              };
-            });
+            const exportData = this.filtered.map((row, i) => ({
+              "No": i + 1,
+              "Nama Pelaku Usaha": row.nama || "",
+              "Kelompok": row.kelompok || "",
+              "Kecamatan": row.kecamatan || "",
+              "Desa": row.desa || "",
+              "Jenis Usaha": row.jenis_usaha || "",
+              "Wadah Budidaya": row.wadah_budidaya || "",
+              "Jenis Ikan": row.jenis_ikan || "",
+            }));
 
             const ws = XLSX.utils.json_to_sheet(exportData);
 
-            const kusukaCol = Object.keys(exportData[0]).indexOf("kusuka");
-            if (kusukaCol >= 0) {
-              const colLetter = XLSX.utils.encode_col(kusukaCol);
-              for (let i = 1; i <= exportData.length; i++) {
-                ws[`${colLetter}${i + 1}`].z = "@";
-              }
-            }
+            // Atur lebar kolom otomatis
+            const colWidths = Object.keys(exportData[0]).map(key => ({
+              wch: Math.max(key.length, ...exportData.map(r => (r[key] || "").toString().length)) + 2
+            }));
+            ws["!cols"] = colWidths;
 
             const wb = XLSX.utils.book_new();
             XLSX.utils.book_append_sheet(wb, ws, "Data Pelaku Usaha");
-            XLSX.writeFile(wb, "data_pelaku_usaha.xlsx");
+            XLSX.writeFile(wb, `data_perikanan_${new Date().toLocaleDateString("id-ID").replace(/\//g,"-")}.xlsx`);
+          },
+
+          downloadPDF() {
+            if (this.filtered.length === 0) {
+              alert("Tidak ada data untuk diunduh.");
+              return;
+            }
+
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
+
+            // Header
+            doc.setFontSize(13);
+            doc.setTextColor(14, 116, 144); // cyan-600
+            doc.setFont(undefined, "bold");
+            doc.text("DATA PERIKANAN BUDIDAYA DPKPP KAB. MEMPAWAH", 14, 14);
+
+            doc.setFontSize(8);
+            doc.setFont(undefined, "normal");
+            doc.setTextColor(80, 80, 80);
+            const tgl = new Date().toLocaleDateString("id-ID", { weekday:"long", year:"numeric", month:"long", day:"numeric" });
+            doc.text(`Dicetak: ${tgl}  |  Total Data: ${this.filtered.length} orang`, 14, 20);
+
+            // Info filter aktif
+            const activeFilters = [];
+            if (this.selected.kecamatan.length) activeFilters.push(`Kecamatan: ${this.selected.kecamatan.join(", ")}`);
+            if (this.selected.desa.length) activeFilters.push(`Desa: ${this.selected.desa.join(", ")}`);
+            if (this.selected.kelompok.length) activeFilters.push(`Kelompok: ${this.selected.kelompok.join(", ")}`);
+            if (this.selected.jenis_usaha.length) activeFilters.push(`Jenis Usaha: ${this.selected.jenis_usaha.join(", ")}`);
+            if (this.selected.wadah_budidaya.length) activeFilters.push(`Wadah: ${this.selected.wadah_budidaya.join(", ")}`);
+            if (this.selected.jenis_ikan.length) activeFilters.push(`Ikan: ${this.selected.jenis_ikan.join(", ")}`);
+            if (this.searchQuery.trim()) activeFilters.push(`Cari: "${this.searchQuery.trim()}"`);
+
+            if (activeFilters.length > 0) {
+              doc.setFontSize(7.5);
+              doc.setTextColor(100, 100, 100);
+              doc.text(`Filter aktif: ${activeFilters.join("  |  ")}`, 14, 25);
+            }
+
+            const startY = activeFilters.length > 0 ? 29 : 25;
+
+            const head = [["No", "Nama Pelaku Usaha", "Kelompok", "Kecamatan", "Desa", "Jenis Usaha", "Wadah Budidaya", "Jenis Ikan"]];
+            const body = this.filtered.map((row, i) => [
+              i + 1,
+              row.nama || "",
+              row.kelompok || "",
+              row.kecamatan || "",
+              row.desa || "",
+              row.jenis_usaha || "",
+              row.wadah_budidaya || "",
+              row.jenis_ikan || "",
+            ]);
+
+            doc.autoTable({
+              head,
+              body,
+              startY,
+              styles: { fontSize: 7.5, cellPadding: 2, overflow: "linebreak" },
+              headStyles: { fillColor: [14, 116, 144], textColor: 255, fontStyle: "bold" },
+              alternateRowStyles: { fillColor: [240, 249, 255] },
+              columnStyles: {
+                0: { cellWidth: 8 },
+                1: { cellWidth: 38 },
+                2: { cellWidth: 32 },
+                3: { cellWidth: 30 },
+                4: { cellWidth: 28 },
+                5: { cellWidth: 25 },
+                6: { cellWidth: 28 },
+                7: { cellWidth: 40 },
+              },
+              didDrawPage: (data) => {
+                // Footer tiap halaman
+                const pageCount = doc.internal.getNumberOfPages();
+                doc.setFontSize(7);
+                doc.setTextColor(150);
+                doc.text(
+                  `Halaman ${data.pageNumber} dari ${pageCount}  —  © ${new Date().getFullYear()} Perikanan Budidaya DPKPP Kab. Mempawah`,
+                  doc.internal.pageSize.getWidth() / 2, doc.internal.pageSize.getHeight() - 5,
+                  { align: "center" }
+                );
+              },
+            });
+
+            doc.save(`data_perikanan_${new Date().toLocaleDateString("id-ID").replace(/\//g,"-")}.pdf`);
           },
 
           // === GEOJSON PATCH FUNCTIONS ===
