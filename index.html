@@ -79,6 +79,19 @@
       <button @click="sidebarOpen = true" class="flex-1 text-white text-sm font-bold py-2 rounded-xl shadow transition bg-red-600">🔍 Filter</button>
     </div>
 
+    <!-- SUMMARY CARDS -->
+    <div class="max-w-7xl mx-auto px-3 md:px-4 mt-4 grid grid-cols-2 md:grid-cols-4 gap-3">
+      <template x-for="card in summaryCards" :key="card.label">
+        <div class="rounded-xl shadow text-white p-4 flex items-center gap-3" :class="card.color">
+          <span class="text-3xl" x-text="card.icon"></span>
+          <div>
+            <div class="text-xs font-medium opacity-90" x-text="card.label"></div>
+            <div class="text-xl font-bold leading-tight" x-text="card.value"></div>
+          </div>
+        </div>
+      </template>
+    </div>
+
     <div class="max-w-7xl mx-auto mt-4 px-3 md:px-4 md:grid md:grid-cols-4 gap-4">
       <div class="sidebar-overlay md:hidden" x-show="sidebarOpen" x-cloak @click="sidebarOpen = false; filterOpen = false"></div>
 
@@ -289,6 +302,12 @@
           </button>
         </div>
 
+        <!-- GRAFIK PERBANDINGAN KECAMATAN -->
+        <div class="mt-4 bg-gray-50 rounded-xl p-3 border border-gray-100">
+          <h4 class="text-cyan-700 font-semibold text-sm mb-2">📊 Jumlah Pelaku Usaha per Kecamatan</h4>
+          <canvas id="kecamatanChart" style="max-height:220px;"></canvas>
+        </div>
+
         <div class="flex justify-between items-center mb-2 mt-3">
           <h3 class="text-cyan-700 font-semibold text-lg">Data Pelaku Usaha</h3>
           <!-- Indikator Filter yang Menonjol -->
@@ -325,7 +344,7 @@
               </tr>
             </thead>
             <tbody>
-              <template x-for="(row, i) in filtered" :key="i">
+              <template x-for="(row, i) in pagedData" :key="i">
                 <tr class="hover:bg-cyan-50">
                   <td class="p-2 whitespace-nowrap" x-text="row.nama"></td>
                   <td class="p-2 whitespace-nowrap" x-text="row.kelompok"></td>
@@ -348,6 +367,43 @@
               </tr>
             </tbody>
           </table>
+        </div>
+
+        <!-- PAGINASI -->
+        <div class="flex flex-col sm:flex-row items-center justify-between gap-3 mt-3 text-sm">
+          <!-- Info baris -->
+          <div class="text-gray-500">
+            Menampilkan
+            <b x-text="Math.min((currentPage-1)*pageSize+1, filtered.length)"></b>–<b x-text="Math.min(currentPage*pageSize, filtered.length)"></b>
+            dari <b x-text="filtered.length"></b> data
+          </div>
+          <!-- Navigasi halaman -->
+          <div class="flex items-center gap-1">
+            <button @click="goPage(1)" :disabled="currentPage===1"
+              class="px-2 py-1 rounded border text-xs disabled:opacity-30 hover:bg-cyan-50">«</button>
+            <button @click="goPage(currentPage-1)" :disabled="currentPage===1"
+              class="px-2 py-1 rounded border text-xs disabled:opacity-30 hover:bg-cyan-50">‹</button>
+            <template x-for="p in pageNumbers" :key="p">
+              <button @click="goPage(p)"
+                :class="p===currentPage ? 'bg-cyan-600 text-white border-cyan-600' : 'hover:bg-cyan-50'"
+                class="px-3 py-1 rounded border text-xs font-medium" x-text="p"></button>
+            </template>
+            <button @click="goPage(currentPage+1)" :disabled="currentPage===totalPages"
+              class="px-2 py-1 rounded border text-xs disabled:opacity-30 hover:bg-cyan-50">›</button>
+            <button @click="goPage(totalPages)" :disabled="currentPage===totalPages"
+              class="px-2 py-1 rounded border text-xs disabled:opacity-30 hover:bg-cyan-50">»</button>
+          </div>
+          <!-- Pilih jumlah per halaman -->
+          <div class="flex items-center gap-2 text-gray-500">
+            Tampilkan
+            <select x-model.number="pageSize" @change="currentPage=1" class="border rounded px-2 py-1 text-xs">
+              <option value="10">10</option>
+              <option value="25">25</option>
+              <option value="50">50</option>
+              <option value="100">100</option>
+            </select>
+            per halaman
+          </div>
         </div>
       </main>
     </div>
