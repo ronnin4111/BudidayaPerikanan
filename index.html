@@ -37,11 +37,8 @@
         .sidebar-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:6999}
       }
 
-      /* ── Chart mobile: batas tinggi ── */
-      canvas{max-width:100%!important}
-      @media(max-width:767px){
-        #barChartMobile,#kecamatanChart{max-height:180px!important}
-      }
+      /* ── Chart: batas lebar & tinggi lewat container ── */
+      canvas{max-width:100%;display:block;}
 
       /* ── Dark Mode ── */
       .dark{background:#0f172a;color:#e2e8f0}
@@ -178,7 +175,7 @@
             <button @click="chartType = 'bar'; updateStats()" :class="chartType === 'bar' ? 'bg-cyan-600 text-white' : 'bg-gray-100 text-gray-600'" class="flex-1 text-xs font-semibold py-1.5 rounded-lg border transition">📊 Bar</button>
           </div>
           <div style="position:relative;width:100%;height:180px;">
-            <canvas id="barChartMobile" style="position:absolute;inset:0;width:100%!important;height:100%!important;"></canvas>
+            <canvas id="barChartMobile"></canvas>
           </div>
           <div>
             <label class="block text-xs text-gray-500 mb-1">Tampilkan Chart Berdasarkan:</label>
@@ -212,7 +209,7 @@
               <button @click="chartType = 'bar'; updateStats()" :class="chartType === 'bar' ? 'bg-cyan-600 text-white' : 'bg-gray-100 text-gray-600'" class="flex-1 text-xs font-semibold py-1.5 rounded-lg border transition">📊 Bar</button>
             </div>
             <div style="position:relative;width:100%;height:200px;">
-              <canvas id="barChart" style="position:absolute;inset:0;width:100%!important;height:100%!important;"></canvas>
+              <canvas id="barChart"></canvas>
             </div>
             <div class="space-y-1">
               <label class="block text-xs text-gray-500">Tampilkan Chart Berdasarkan:</label>
@@ -354,8 +351,8 @@
         <!-- GRAFIK PERBANDINGAN KECAMATAN -->
         <div class="mt-3 bg-gray-50 rounded-xl p-3 border border-gray-100">
           <h4 class="text-cyan-700 font-semibold text-sm mb-2">📊 Jumlah Pelaku Usaha per Kecamatan</h4>
-          <div style="position:relative;width:100%;height:200px;">
-            <canvas id="kecamatanChart" style="position:absolute;inset:0;width:100%!important;height:100%!important;"></canvas>
+          <div style="position:relative;width:100%;height:240px;">
+            <canvas id="kecamatanChart"></canvas>
           </div>
         </div>
 
