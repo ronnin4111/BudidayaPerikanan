@@ -173,7 +173,13 @@ function cleanBlueApp() {
         this.applyFilters();
         this.isLoading = false;
         // Render ulang chart setelah layout stabil (penting untuk mobile)
-        setTimeout(() => { this.updatePieChart(); this.updateKecamatanChart(); }, 100);
+        // Gunakan dua tahap delay: cepat untuk desktop, lebih lama untuk mobile
+        const renderCharts = () => {
+          this.updatePieChart();
+          this.updateKecamatanChart();
+        };
+        setTimeout(renderCharts, 150);
+        setTimeout(renderCharts, 600); // retry untuk mobile yang lambat render
       } catch (err) {
         console.error("Error loading sheet:", err);
         this.isLoading = false;
@@ -517,11 +523,14 @@ function cleanBlueApp() {
       const makeChart = (canvasId) => {
         const el = document.getElementById(canvasId);
         if (!el) return null;
-        // Skip jika elemen atau parent-nya tidak terlihat (display:none)
-        if (el.offsetParent === null && !document.body.contains(el)) return null;
-        const parent = el.closest('[class*="hidden"]');
-        const isHidden = parent && window.getComputedStyle(parent).display === 'none';
-        if (isHidden) return null;
+        // Cek apakah elemen benar-benar ada di DOM dan tidak tersembunyi oleh ancestor
+        if (!document.body.contains(el)) return null;
+        // Cek semua ancestor sampai body apakah ada yang display:none
+        let node = el.parentElement;
+        while (node && node !== document.body) {
+          if (window.getComputedStyle(node).display === 'none') return null;
+          node = node.parentElement;
+        }
         return new Chart(el.getContext("2d"), {
           type: isPie ? "pie" : "bar",
           data: {
