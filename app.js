@@ -14,6 +14,7 @@ function cleanBlueApp() {
     sidebarOpen: false,
     statsOpen: true,
     filterOpen: true,
+    darkMode: false,
 
     // ── Paginasi ──────────────────────────────────────────────
     pageSize: 25,
@@ -26,6 +27,10 @@ function cleanBlueApp() {
       { label: "Total Produksi (Kg)",value: 0, icon: "🐟", color: "bg-blue-500"    },
       { label: "Total Luas (m²)",    value: 0, icon: "📐", color: "bg-violet-500"  },
     ],
+
+    // ── Legenda Warna Jenis Usaha ──────────────────────────────
+    markerColorMap: {},
+    markerLegendItems: [],
 
     // ── Data ──────────────────────────────────────────────────
     sheetURL:
@@ -171,13 +176,56 @@ function cleanBlueApp() {
     },
 
     // ══════════════════════════════════════════════════════════
-    //  PETA — dengan MarkerCluster
+    //  PETA — dengan MarkerCluster + Warna per Jenis Usaha
     // ══════════════════════════════════════════════════════════
+
+    // Palet warna tetap untuk jenis usaha
+    _usahaColors: [
+      "#0e7490","#059669","#d97706","#dc2626","#7c3aed",
+      "#db2777","#0284c7","#16a34a","#ea580c","#9333ea",
+    ],
+
+    _getUsahaColor(jenisUsaha) {
+      if (!this._usahaColorIndex) this._usahaColorIndex = {};
+      if (!this._usahaColorIndex[jenisUsaha]) {
+        const idx = Object.keys(this._usahaColorIndex).length % this._usahaColors.length;
+        this._usahaColorIndex[jenisUsaha] = this._usahaColors[idx];
+      }
+      return this._usahaColorIndex[jenisUsaha];
+    },
+
+    _makeColoredIcon(color) {
+      return L.divIcon({
+        className: "",
+        html: `<div style="
+          width:14px;height:14px;
+          background:${color};
+          border:2px solid white;
+          border-radius:50%;
+          box-shadow:0 1px 4px rgba(0,0,0,0.4);
+        "></div>`,
+        iconSize: [14, 14],
+        iconAnchor: [7, 7],
+        popupAnchor: [0, -10],
+      });
+    },
+
     updateMapMarkers() {
       if (!this.map) return;
 
       if (this.markerLayer) this.map.removeLayer(this.markerLayer);
-      // Gunakan MarkerClusterGroup jika tersedia, fallback ke LayerGroup
+      this._usahaColorIndex = {}; // reset warna setiap render
+
+      // Bangun peta warna dari semua jenis usaha dulu
+      const allUsaha = [...new Set(this.filtered.map(r => r.jenis_usaha).filter(Boolean))].sort();
+      allUsaha.forEach(u => this._getUsahaColor(u));
+
+      // Update legenda
+      this.markerLegendItems = allUsaha.map(u => ({
+        label: u,
+        color: this._getUsahaColor(u),
+      }));
+
       this.markerLayer = (typeof L.markerClusterGroup === "function")
         ? L.markerClusterGroup({ maxClusterRadius: 50, spiderfyOnMaxZoom: true, showCoverageOnHover: false })
         : L.layerGroup();
@@ -186,16 +234,19 @@ function cleanBlueApp() {
       this.filtered.forEach((r) => {
         if (!r.lat || !r.lng) return;
 
-        const gmapsUrl = `https://www.google.com/maps/dir/?api=1&destination=${r.lat},${r.lng}`;
-        const waUrl    = `https://wa.me/?text=${encodeURIComponent(
+        const color     = this._getUsahaColor(r.jenis_usaha || "Lainnya");
+        const icon      = this._makeColoredIcon(color);
+        const gmapsUrl  = `https://www.google.com/maps/dir/?api=1&destination=${r.lat},${r.lng}`;
+        const waUrl     = `https://wa.me/?text=${encodeURIComponent(
           `📍 Lokasi Budidaya Perikanan\n👤 ${r.nama}\n🏘️ ${r.kelompok}\n🐟 ${r.jenis_ikan}\n📌 ${r.desa}, ${r.kecamatan}\n\n🗺️ Buka di Google Maps:\nhttps://www.google.com/maps?q=${r.lat},${r.lng}`
         )}`;
 
-        const m = L.marker([r.lat, r.lng]);
+        const m = L.marker([r.lat, r.lng], { icon });
         m.bindPopup(`
           <div style="min-width:200px;font-family:sans-serif;">
-            <div style="font-weight:700;font-size:13px;color:#0e7490;margin-bottom:4px;">${r.nama}</div>
+            <div style="font-weight:700;font-size:13px;color:${color};margin-bottom:4px;">${r.nama}</div>
             <div style="font-size:11px;color:#374151;line-height:1.6;">
+              🏷️ <b>Jenis Usaha:</b> <span style="color:${color};font-weight:600;">${r.jenis_usaha || "-"}</span><br>
               🏘️ <b>Kelompok:</b> ${r.kelompok || "-"}<br>
               🐟 <b>Ikan:</b> ${r.jenis_ikan || "-"}<br>
               🏠 <b>Wadah:</b> ${r.wadah_budidaya || "-"}<br>
@@ -224,7 +275,6 @@ function cleanBlueApp() {
 
       this.markerLayer.addTo(this.map);
 
-      // Zoom otomatis ke area marker (dengan pengecekan bounds kosong)
       const validCoords = this.filtered.filter((r) => r.lat && r.lng).map((r) => [r.lat, r.lng]);
       if (validCoords.length > 0) {
         this.map.fitBounds(L.latLngBounds(validCoords));
@@ -389,16 +439,12 @@ function cleanBlueApp() {
       const produksi        = sum(f, "produksi");
 
       this.stats = [
-        { label: "Kusuka",              value: kusuka,                      percent: ((kusuka  / total) * 100).toFixed(1) },
-        { label: "NIB",                 value: nib,                         percent: ((nib     / total) * 100).toFixed(1) },
-        { label: "CPIB",                value: cpib,                        percent: ((cpib    / total) * 100).toFixed(1) },
-        { label: "CBIB",                value: cbib,                        percent: ((cbib    / total) * 100).toFixed(1) },
-        { label: "Kusuka Kelompok",     value: kusuka_kelompok,             percent: null },
-        { label: "Jumlah Kolam",        value: kolam.toLocaleString(),      percent: null },
-        { label: "Luas Lahan (m²)",     value: lahan.toLocaleString(),      percent: null },
-        { label: "Jumlah Kelompok",     value: 0,                           percent: null },
-        { label: "Jumlah Pelaku Usaha", value: f.length,                    percent: null },
-        { label: "Produksi (Kg)",       value: produksi.toLocaleString(),   percent: null },
+        { label: "Kusuka",          value: kusuka,                 percent: ((kusuka / total) * 100).toFixed(1) },
+        { label: "NIB",             value: nib,                    percent: ((nib    / total) * 100).toFixed(1) },
+        { label: "CPIB",            value: cpib,                   percent: ((cpib   / total) * 100).toFixed(1) },
+        { label: "CBIB",            value: cbib,                   percent: ((cbib   / total) * 100).toFixed(1) },
+        { label: "Kusuka Kelompok", value: kusuka_kelompok,        percent: null },
+        { label: "Jumlah Kolam",    value: kolam.toLocaleString(), percent: null },
       ];
 
       this.updatePieChart();
@@ -459,6 +505,7 @@ function cleanBlueApp() {
           },
           options: {
             responsive: true,
+            maintainAspectRatio: false,
             indexAxis: isPie ? undefined : "y",
             plugins: {
               legend: { display: isPie, labels: { color: "#1f2937", font: { size: 13 } } },
@@ -513,11 +560,7 @@ function cleanBlueApp() {
       this.filtered.forEach((r) => {
         if (r.kelompok && r.kelompok.trim() !== "") kelompokSet.add(r.kelompok.trim());
       });
-      this.stats = this.stats.map((stat) => {
-        if (stat.label === "Jumlah Kelompok")     return { ...stat, value: kelompokSet.size };
-        if (stat.label === "Jumlah Pelaku Usaha") return { ...stat, value: this.filtered.length };
-        return stat;
-      });
+      // stats sudah tidak include Jumlah Kelompok/Pelaku Usaha — sudah di summaryCards
       this.updateKecamatanChart();
     },
 
@@ -555,6 +598,7 @@ function cleanBlueApp() {
         },
         options: {
           responsive: true,
+          maintainAspectRatio: false,
           indexAxis: "y",
           plugins: {
             legend: { display: false },
