@@ -202,7 +202,7 @@
 
     <div class="max-w-7xl mx-auto mt-4 px-3 md:px-4 md:grid md:grid-cols-4 gap-4">
 
-      <!-- OVERLAY saat filter terbuka di mobile -->
+      <!-- OVERLAY filter mobile -->
       <div
         class="sidebar-overlay md:hidden"
         x-show="sidebarOpen"
@@ -210,18 +210,83 @@
         @click="sidebarOpen = false; filterOpen = false"
       ></div>
 
-      <!-- SIDEBAR KIRI -->
-      <aside
-        :class="sidebarOpen ? 'sidebar-mobile-open' : 'hidden md:block'"
-        class="bg-white rounded-xl shadow md:col-span-1 overflow-hidden"
+      <!-- ===== DRAWER FILTER (mobile only) ===== -->
+      <div
+        x-show="sidebarOpen"
+        x-cloak
+        class="sidebar-mobile-open md:hidden bg-white overflow-y-auto"
+        style="z-index:7001;"
       >
-        <!-- Tombol tutup (mobile) -->
-        <div class="flex items-center justify-between p-4 md:hidden border-b">
-          <span class="text-cyan-700 font-semibold text-sm">🔍 Filter Utama</span>
+        <div class="flex items-center justify-between p-4 border-b">
+          <span class="text-cyan-700 font-semibold">🔍 Filter Utama</span>
           <button @click="sidebarOpen = false; filterOpen = false" class="text-gray-400 hover:text-gray-600 text-2xl leading-none">&times;</button>
         </div>
+        <div class="p-4 space-y-4 text-sm">
+          <template x-for="(def, key) in filtersDef" :key="key">
+            <div x-data="{ open: false }" class="relative">
+              <label class="block text-gray-600 mb-1 font-medium" x-text="def.label"></label>
+              <div @click="open = !open" class="border rounded p-2 cursor-pointer bg-white hover:bg-cyan-50 text-sm">
+                <template x-if="selected[key].length === 0"><span class="text-gray-400">Pilih...</span></template>
+                <template x-if="selected[key].length > 0"><span class="text-cyan-700 font-medium text-xs" x-text="selected[key].join(', ')"></span></template>
+              </div>
+              <div x-show="open" x-cloak @click.outside="open = false" class="absolute z-20 bg-white border rounded shadow mt-1 w-full max-h-48 overflow-y-auto">
+                <template x-for="opt in def.options" :key="opt">
+                  <label class="flex items-center px-2 py-1 hover:bg-cyan-50 cursor-pointer">
+                    <input type="checkbox" class="mr-2" :value="opt" @change="toggleSelect(key, opt)" :checked="selected[key].includes(opt)" />
+                    <span x-text="opt"></span>
+                  </label>
+                </template>
+              </div>
+            </div>
+          </template>
+          <button @click="resetFilters" class="w-full bg-gray-200 hover:bg-gray-300 rounded-lg py-2 text-sm">🔄 Reset Filter</button>
+          <button @click="sidebarOpen = false; filterOpen = false" class="w-full bg-cyan-600 hover:bg-cyan-700 text-white font-semibold rounded-lg py-2.5 text-sm transition">✅ Terapkan Filter</button>
+        </div>
+      </div>
 
-        <!-- ===== PANEL STATISTIK (selalu tampil) ===== -->
+      <!-- ===== STATISTIK MOBILE (selalu tampil, di luar drawer) ===== -->
+      <div class="md:hidden bg-white rounded-xl shadow mb-3 overflow-hidden">
+        <div class="px-4 py-3 border-b">
+          <span class="text-cyan-700 font-semibold text-sm">📊 Statistik</span>
+        </div>
+        <div class="px-4 py-3 space-y-3">
+          <div class="grid grid-cols-1 gap-1 text-sm">
+            <template x-for="stat in stats" :key="stat.label">
+              <div class="flex justify-between border-b pb-1">
+                <span class="font-medium" x-text="stat.label"></span>
+                <span>
+                  <b x-text="stat.value"></b>
+                  <template x-if="stat.percent !== null">
+                    <span class="text-gray-500 text-xs"> (<span x-text="stat.percent"></span>%)</span>
+                  </template>
+                </span>
+              </div>
+            </template>
+          </div>
+          <div class="flex gap-2">
+            <button @click="chartType = 'pie'; updateStats()"
+              :class="chartType === 'pie' ? 'bg-cyan-600 text-white' : 'bg-gray-100 text-gray-600'"
+              class="flex-1 text-xs font-semibold py-1.5 rounded-lg border transition">🥧 Pie</button>
+            <button @click="chartType = 'bar'; updateStats()"
+              :class="chartType === 'bar' ? 'bg-cyan-600 text-white' : 'bg-gray-100 text-gray-600'"
+              class="flex-1 text-xs font-semibold py-1.5 rounded-lg border transition">📊 Bar</button>
+          </div>
+          <canvas id="barChartMobile"></canvas>
+          <div>
+            <label class="block text-xs text-gray-500 mb-1">Tampilkan Chart Berdasarkan:</label>
+            <select x-model="chartFilter" @change="updateStats" class="w-full border rounded p-2 text-sm">
+              <option value="">-- Semua Data --</option>
+              <option value="jenis_usaha">Jenis Usaha</option>
+              <option value="jenis_ikan">Jenis Ikan</option>
+              <option value="wadah_budidaya">Wadah Budidaya</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===== SIDEBAR DESKTOP (hidden di mobile) ===== -->
+      <aside class="hidden md:block bg-white rounded-xl shadow md:col-span-1 overflow-hidden">
+        <!-- STATISTIK desktop -->
         <div class="border-b">
           <div class="px-4 py-3">
             <span class="text-cyan-700 font-semibold text-sm">📊 Statistik</span>
@@ -240,7 +305,6 @@
                 </div>
               </template>
             </div>
-
             <div class="flex gap-2">
               <button @click="chartType = 'pie'; updateStats()"
                 :class="chartType === 'pie' ? 'bg-cyan-600 text-white' : 'bg-gray-100 text-gray-600'"
@@ -249,9 +313,7 @@
                 :class="chartType === 'bar' ? 'bg-cyan-600 text-white' : 'bg-gray-100 text-gray-600'"
                 class="flex-1 text-xs font-semibold py-1.5 rounded-lg border transition">📊 Bar</button>
             </div>
-
             <canvas id="barChart"></canvas>
-
             <div class="space-y-1">
               <label class="block text-xs text-gray-500">Tampilkan Chart Berdasarkan:</label>
               <select x-model="chartFilter" @change="updateStats" class="w-full border rounded p-2 text-sm">
@@ -263,18 +325,13 @@
             </div>
           </div>
         </div>
-
-        <!-- ===== PANEL FILTER ===== -->
+        <!-- FILTER desktop -->
         <div>
-          <!-- Header Filter — klik untuk collapse -->
-          <button
-            @click="filterOpen = !filterOpen"
-            class="w-full flex items-center justify-between px-4 py-3 hover:bg-cyan-50 transition"
-          >
+          <button @click="filterOpen = !filterOpen"
+            class="w-full flex items-center justify-between px-4 py-3 hover:bg-cyan-50 transition">
             <span class="text-cyan-700 font-semibold text-sm">🔍 Filter Utama</span>
             <span class="text-cyan-600 text-lg" x-text="filterOpen ? '▲' : '▼'"></span>
           </button>
-          <!-- Konten Filter -->
           <div x-show="filterOpen" x-cloak class="px-4 pb-4">
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
           <div x-data="{ open: false }" class="relative">
@@ -517,27 +574,14 @@
             </div>
           </div>
 
-          <div class="flex items-end sm:justify-end">
-            <button
-              @click="resetFilters"
-              class="w-full sm:w-auto mt-1 bg-gray-200 rounded py-2 px-4 hover:bg-gray-300 text-sm"
-            >
-              🔄 Reset Filter
-            </button>
-          </div>
-
-          <!-- Tombol Terapkan Filter (mobile only) -->
-          <div class="md:hidden pt-2">
-            <button
-              @click="sidebarOpen = false; filterOpen = false"
-              class="w-full bg-cyan-600 hover:bg-cyan-700 text-white font-semibold rounded-lg py-2.5 text-sm transition"
-            >
-              ✅ Terapkan Filter
-            </button>
-          </div>
+          <button @click="resetFilters"
+            class="w-full bg-gray-200 hover:bg-gray-300 rounded-lg py-2 text-sm mt-2">
+            🔄 Reset Filter
+          </button>
+          </div><!-- end filter grid -->
           </div><!-- end filter content -->
-        </div><!-- end panel filter -->
-      </aside>
+        </div><!-- end filter panel -->
+      </aside><!-- end desktop sidebar -->
 
       <!-- MAIN -->
       <main class="md:col-span-3 bg-white rounded-xl shadow p-3 md:p-4 overflow-x-auto pb-20 mt-4 md:mt-0">
@@ -1162,78 +1206,80 @@ setInterval(updateClock, 1000);
   const colors = chartLabels.map((_, i) => `hsl(${(i * 137.5) % 360}, 70%, 60%)`);
 
   if (this.barChart) this.barChart.destroy();
+  if (this.barChartMobile) this.barChartMobile.destroy();
+
   Chart.register(ChartDataLabels);
-  const ctx = document.getElementById("barChart").getContext("2d");
 
   const isPie = type === "pie";
 
-  this.barChart = new Chart(ctx, {
-    type: isPie ? "pie" : "bar",
-    data: {
-      labels: chartLabels,
-      datasets: [{
-        data: chartData,
-        backgroundColor: colors,
-        borderColor: isPie ? undefined : colors.map(c => c.replace("60%", "45%")),
-        borderWidth: isPie ? 0 : 1,
-      }],
-    },
-    options: {
-      responsive: true,
-      indexAxis: isPie ? undefined : "y",
-      plugins: {
-        legend: {
-          display: isPie,
-          labels: { color: "#1f2937", font: { size: 13 } },
-        },
-        tooltip: {
-          bodyColor: "#1f2937",
-          backgroundColor: "#f9fafb",
-          callbacks: {
-            label: function (context) {
-              const label = context.label || "";
-              const value = isPie ? (context.parsed || 0) : (context.parsed.x || 0);
-              const data = context.chart.data.datasets[0].data;
-              const total = data.reduce((sum, val) => sum + val, 0);
-              const percent = ((value / total) * 100).toFixed(1);
-              return `${label}: ${value.toLocaleString()} (${percent}%)`;
+  const makeChart = (canvasId) => {
+    const el = document.getElementById(canvasId);
+    if (!el) return null;
+    const ctx = el.getContext("2d");
+    return new Chart(ctx, {
+      type: isPie ? "pie" : "bar",
+      data: {
+        labels: chartLabels,
+        datasets: [{
+          data: chartData,
+          backgroundColor: colors,
+          borderColor: isPie ? undefined : colors.map(c => c.replace("60%", "45%")),
+          borderWidth: isPie ? 0 : 1,
+        }],
+      },
+      options: {
+        responsive: true,
+        indexAxis: isPie ? undefined : "y",
+        plugins: {
+          legend: {
+            display: isPie,
+            labels: { color: "#1f2937", font: { size: 13 } },
+          },
+          tooltip: {
+            bodyColor: "#1f2937",
+            backgroundColor: "#f9fafb",
+            callbacks: {
+              label: function (context) {
+                const label = context.label || "";
+                const value = isPie ? (context.parsed || 0) : (context.parsed.x || 0);
+                const data = context.chart.data.datasets[0].data;
+                const total = data.reduce((sum, val) => sum + val, 0);
+                const percent = ((value / total) * 100).toFixed(1);
+                return `${label}: ${value.toLocaleString()} (${percent}%)`;
+              },
+            },
+          },
+          datalabels: {
+            color: isPie ? "#fff" : "#1f2937",
+            textShadowColor: isPie ? "rgba(0,0,0,0.6)" : undefined,
+            textShadowBlur: isPie ? 4 : undefined,
+            anchor: isPie ? "center" : "end",
+            align: isPie ? "center" : "end",
+            formatter: (value, context) => {
+              const total = context.chart.data.datasets[0].data.reduce((a, b) => a + b, 0);
+              const pct = ((value / total) * 100).toFixed(1);
+              return isPie ? `${pct}%` : `${value} (${pct}%)`;
+            },
+            font: { weight: "bold", size: isPie ? 12 : 10 },
+            display: (context) => {
+              if (!isPie) return true;
+              const total = context.chart.data.datasets[0].data.reduce((a, b) => a + b, 0);
+              return (context.dataset.data[context.dataIndex] / total) >= 0.03;
             },
           },
         },
-        datalabels: {
-          color: isPie ? "#fff" : "#1f2937",
-          textShadowColor: isPie ? "rgba(0,0,0,0.6)" : undefined,
-          textShadowBlur: isPie ? 4 : undefined,
-          anchor: isPie ? "center" : "end",
-          align: isPie ? "center" : "end",
-          formatter: (value, context) => {
-            const total = context.chart.data.datasets[0].data.reduce((a, b) => a + b, 0);
-            const pct = ((value / total) * 100).toFixed(1);
-            return isPie ? `${pct}%` : `${value} (${pct}%)`;
-          },
-          font: { weight: "bold", size: isPie ? 12 : 10 },
-          display: (context) => {
-            if (!isPie) return true;
-            const total = context.chart.data.datasets[0].data.reduce((a, b) => a + b, 0);
-            return (context.dataset.data[context.dataIndex] / total) >= 0.03;
-          },
+        scales: isPie ? {} : {
+          x: { beginAtZero: true, ticks: { color: "#1f2937", font: { size: 10 } }, grid: { color: "#e5e7eb" } },
+          y: { ticks: { color: "#1f2937", font: { size: 10 } }, grid: { display: false } },
         },
+        layout: isPie ? {} : { padding: { right: 60 } },
       },
-      scales: isPie ? {} : {
-        x: {
-          beginAtZero: true,
-          ticks: { color: "#1f2937", font: { size: 10 } },
-          grid: { color: "#e5e7eb" },
-        },
-        y: {
-          ticks: { color: "#1f2937", font: { size: 10 } },
-          grid: { display: false },
-        },
-      },
-      layout: isPie ? {} : { padding: { right: 60 } },
-    },
-    plugins: [ChartDataLabels],
-  });
+      plugins: [ChartDataLabels],
+    });
+  };
+
+  this.barChart = makeChart("barChart");
+  this.barChartMobile = makeChart("barChartMobile");
 }
 ,
 
