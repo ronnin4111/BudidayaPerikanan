@@ -118,6 +118,12 @@ function cleanBlueApp() {
       updateClock();
       setInterval(updateClock, 1000);
 
+      // --- Rerender chart saat dark mode berubah ---
+      this.$watch('darkMode', () => {
+        this.updatePieChart();
+        this.updateKecamatanChart();
+      });
+
       // --- Ambil Data Google Sheet ---
       try {
         const res  = await fetch(this.sheetURL);
@@ -489,6 +495,15 @@ function cleanBlueApp() {
       Chart.register(ChartDataLabels);
       const isPie = type === "pie";
 
+      // ── Warna dinamis (light / dark mode) ──────────────────
+      const isDark       = this.darkMode;
+      const textColor    = isDark ? "#e2e8f0" : "#1f2937";
+      const subColor     = isDark ? "#94a3b8" : "#6b7280";
+      const gridColor    = isDark ? "#334155" : "#e5e7eb";
+      const tooltipBg    = isDark ? "#1e293b" : "#f9fafb";
+      const tooltipText  = isDark ? "#e2e8f0" : "#1f2937";
+      const datalabelClr = isPie  ? "#fff"    : textColor;
+
       const makeChart = (canvasId) => {
         const el = document.getElementById(canvasId);
         if (!el) return null;
@@ -508,10 +523,10 @@ function cleanBlueApp() {
             maintainAspectRatio: false,
             indexAxis: isPie ? undefined : "y",
             plugins: {
-              legend: { display: isPie, labels: { color: "#1f2937", font: { size: 13 } } },
+              legend: { display: isPie, labels: { color: textColor, font: { size: 13 } } },
               tooltip: {
-                bodyColor: "#1f2937",
-                backgroundColor: "#f9fafb",
+                bodyColor: tooltipText,
+                backgroundColor: tooltipBg,
                 callbacks: {
                   label(context) {
                     const value   = isPie ? (context.parsed || 0) : (context.parsed.x || 0);
@@ -523,7 +538,7 @@ function cleanBlueApp() {
                 },
               },
               datalabels: {
-                color:           isPie ? "#fff" : "#1f2937",
+                color:           datalabelClr,
                 textShadowColor: isPie ? "rgba(0,0,0,0.6)" : undefined,
                 textShadowBlur:  isPie ? 4 : undefined,
                 anchor:          isPie ? "center" : "end",
@@ -542,8 +557,8 @@ function cleanBlueApp() {
               },
             },
             scales: isPie ? {} : {
-              x: { beginAtZero: true, ticks: { color: "#1f2937", font: { size: 10 } }, grid: { color: "#e5e7eb" } },
-              y: { ticks: { color: "#1f2937", font: { size: 10 } }, grid: { display: false } },
+              x: { beginAtZero: true, ticks: { color: subColor, font: { size: 10 } }, grid: { color: gridColor } },
+              y: { ticks: { color: textColor, font: { size: 10 } }, grid: { display: false } },
             },
             layout: isPie ? {} : { padding: { right: 60 } },
           },
@@ -582,6 +597,13 @@ function cleanBlueApp() {
       const el = document.getElementById("kecamatanChart");
       if (!el || labels.length === 0) return;
 
+      // ── Warna dinamis (light / dark mode) ──────────────────
+      const isDark    = this.darkMode;
+      const textColor = isDark ? "#e2e8f0" : "#1f2937";
+      const subColor  = isDark ? "#94a3b8" : "#6b7280";
+      const gridColor = isDark ? "#475569" : "#f3f4f6";
+      const dlColor   = isDark ? "#e2e8f0" : "#1f2937";
+
       Chart.register(ChartDataLabels);
       this._kecChart = new Chart(el.getContext("2d"), {
         type: "bar",
@@ -609,14 +631,14 @@ function cleanBlueApp() {
             },
             datalabels: {
               anchor: "end", align: "end",
-              color: "#1f2937",
+              color: dlColor,
               font: { weight: "bold", size: 11 },
               formatter: (v) => v,
             },
           },
           scales: {
-            x: { beginAtZero: true, ticks: { color: "#6b7280", font: { size: 10 } }, grid: { color: "#f3f4f6" } },
-            y: { ticks: { color: "#1f2937", font: { size: 11 } }, grid: { display: false } },
+            x: { beginAtZero: true, ticks: { color: subColor, font: { size: 10 } }, grid: { color: gridColor } },
+            y: { ticks: { color: textColor, font: { size: 11 } }, grid: { display: false } },
           },
           layout: { padding: { right: 32 } },
         },
