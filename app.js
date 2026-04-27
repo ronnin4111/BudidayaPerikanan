@@ -523,15 +523,7 @@ function cleanBlueApp() {
       const makeChart = (canvasId) => {
         const el = document.getElementById(canvasId);
         if (!el) return null;
-        // Cek apakah elemen benar-benar ada di DOM dan tidak tersembunyi oleh ancestor
-        if (!document.body.contains(el)) return null;
-        // Cek semua ancestor sampai body apakah ada yang display:none
-        let node = el.parentElement;
-        while (node && node !== document.body) {
-          if (window.getComputedStyle(node).display === 'none') return null;
-          node = node.parentElement;
-        }
-        return new Chart(el.getContext("2d"), {
+        const chart = new Chart(el.getContext("2d"), {
           type: isPie ? "pie" : "bar",
           data: {
             labels: chartLabels,
@@ -589,6 +581,9 @@ function cleanBlueApp() {
           },
           plugins: [ChartDataLabels],
         });
+        // Paksa resize agar ukuran canvas benar meski parent sempat hidden
+        setTimeout(() => { try { chart.resize(); } catch(_) {} }, 50);
+        return chart;
       };
 
       this.barChart       = makeChart("barChart");
@@ -669,10 +664,8 @@ function cleanBlueApp() {
         },
         plugins: [ChartDataLabels],
       });
+      setTimeout(() => { try { this._kecChart.resize(); } catch(_) {} }, 50);
     },
-
-    // ══════════════════════════════════════════════════════════
-    //  UNDUH
     // ══════════════════════════════════════════════════════════
     downloadExcel() {
       if (this.filtered.length === 0) { alert("Tidak ada data untuk diunduh."); return; }
