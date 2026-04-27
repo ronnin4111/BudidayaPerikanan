@@ -60,6 +60,15 @@ function cleanBlueApp() {
     layerVisible: { kecamatan: false, desa: false },
     _legendControl: null,
 
+    // ── Chart instances ───────────────────────────────────────
+    barChart: null,
+    barChartMobile: null,
+    _kecChart: null,
+
+    // ── Retry counter untuk deferred chart rendering ──────────
+    _pieChartRetry: 0,
+    _kecChartRetry: 0,
+
     // ── Statistik ─────────────────────────────────────────────
     stats: [
       { label: "Kusuka",              value: 0, percent: 0    },
@@ -128,43 +137,53 @@ function cleanBlueApp() {
       // --- Rerender chart saat dark mode berubah ---
       this.$watch('darkMode', (isDark) => {
         applyChartDefaults(isDark);
-        this.updatePieChart();
-        this.updateKecamatanChart();
+        this._renderAllCharts();
       });
 
-      // ═══════════════════════════════════════════════════════
-      //  FIX MOBILE: Re-render chart saat sidebar dibuka
-      //  Chart.js tidak bisa membuat chart dengan ukuran
-      //  yang benar di container display:none, jadi kita
-      //  harus re-create setelah container visible.
-      // ═══════════════════════════════════════════════════════
-      this.$watch('sidebarOpen', (val) => {
-  if (val) {
-    setTimeout(() => { this.updatePieChart(); this.updateKecamatanChart(); }, 250);
-  }
-});
-
-      // ═══════════════════════════════════════════════════════
-      //  FIX MOBILE: Re-render chart kecamatan saat section
-      //  statistik dibuka (jika chart ada di dalamnya)
-      // ═══════════════════════════════════════════════════════
-      this.$watch('statsOpen', (val) => {
-        if (val) {
-          setTimeout(() => { this.updateKecamatanChart(); }, 250);
+      // ── FIX MOBILE: Re-render chart saat sidebar dibuka ─────
+      // Di mobile, sidebar tersembunyi via CSS transform sehingga
+      // canvas punya dimensi 0 saat init. Ketika sidebar dibuka,
+      // kita harus membuat ulang chart agar mendapat dimensi yang benar.
+      this.$watch('sidebarOpen', (isOpen) => {
+        if (isOpen && window.innerWidth < 1024) {
+          this.$nextTick(() => {
+            setTimeout(() => {
+              this._renderAllCharts();
+            }, 350); // tunggu CSS transition selesai (300ms)
+          });
         }
       });
 
-      // ═══════════════════════════════════════════════════════
-      //  FIX MOBILE: Re-render semua chart saat ukuran layar
-      //  berubah (misalnya rotate HP / resize browser)
-      // ═══════════════════════════════════════════════════════
+      // ── FIX MOBILE: Re-render chart saat stats accordion dibuka ─
+      this.$watch('statsOpen', (isOpen) => {
+        if (isOpen) {
+          this.$nextTick(() => {
+            setTimeout(() => {
+              this._renderAllCharts();
+            }, 350);
+          });
+        }
+      });
+
+      // ── FIX MOBILE: Re-render chart saat filter accordion dibuka ─
+      // (karena chart ada di bawah filter di sidebar)
+      this.$watch('filterOpen', (isOpen) => {
+        if (isOpen) {
+          this.$nextTick(() => {
+            setTimeout(() => {
+              this._renderAllCharts();
+            }, 350);
+          });
+        }
+      });
+
+      // ── FIX MOBILE: Re-render saat ukuran layar berubah ──────
       let resizeTimer;
       window.addEventListener('resize', () => {
         clearTimeout(resizeTimer);
         resizeTimer = setTimeout(() => {
-          this.updatePieChart();
-          this.updateKecamatanChart();
-        }, 300);
+          this._renderAllCharts();
+        }, 350);
       });
 
       // --- Ambil Data Google Sheet ---
@@ -207,8 +226,12 @@ function cleanBlueApp() {
         this.updateFilterOptions();
         this.applyFilters();
         this.isLoading = false;
-        // Render ulang chart setelah layout stabil (penting untuk mobile)
-        setTimeout(() => { this.updatePieChart(); this.updateKecamatanChart(); }, 300);
+
+        // ── FIX MOBILE: Render chart setelah layout stabil ─────
+        // Di mobile, sidebar tersembunyi sehingga canvas di dalamnya
+        // belum punya dimensi. Kita coba render, dan jika gagal
+        // (dimensi 0), akan di-retry oleh logic di dalam makeChart.
+        setTimeout(() => { this._renderAllCharts(); }, 300);
       } catch (err) {
         console.error("Error loading sheet:", err);
         this.isLoading = false;
@@ -225,9 +248,18 @@ function cleanBlueApp() {
       this.updateMapMarkers();
     },
 
+    // ── Helper: render semua chart sekaligus ──────────────────
+    _renderAllCharts() {
+      this._pieChartRetry = 0;
+      this._kecChartRetry = 0;
+      this.updatePieChart();
+      this.updateKecamatanChart();
+    },
+
     // ══════════════════════════════════════════════════════════
     //  PETA — dengan MarkerCluster + Warna per Jenis Usaha
     // ══════════════════════════════════════════════════════════
+
     _usahaColors: [
       "#0e7490","#059669","#d97706","#dc2626","#7c3aed",
       "#db2777","#0284c7","#16a34a","#ea580c","#9333ea",
@@ -477,8 +509,6 @@ function cleanBlueApp() {
       const cbib            = count(f, "cbib");
       const kusuka_kelompok = f.reduce((acc, x) => acc + (x.kusuka_kelompok ? 1 : 0), 0);
       const kolam           = sum(f, "kolam");
-      const lahan           = sum(f, "lahan");
-      const produksi        = sum(f, "produksi");
 
       this.stats = [
         { label: "Kusuka",          value: kusuka,                 percent: ((kusuka / total) * 100).toFixed(1) },
@@ -527,6 +557,8 @@ function cleanBlueApp() {
       const colors = chartLabels.map((_, i) => `hsl(${(i * 137.5) % 360}, 70%, 60%)`);
       if (this.barChart)       this.barChart.destroy();
       if (this.barChartMobile) this.barChartMobile.destroy();
+      this.barChart = null;
+      this.barChartMobile = null;
 
       Chart.register(ChartDataLabels);
       const isPie = type === "pie";
@@ -539,35 +571,22 @@ function cleanBlueApp() {
       const tooltipText  = isDark ? "#e2e8f0" : "#1f2937";
       const datalabelClr = isPie  ? "#fff"    : textColor;
 
+      // ── FIX MOBILE: Fungsi pembuat chart dengan retry ───────
+      // Menghapus pengecekan offsetParent yang memblokir rendering
+      // di mobile (karena sidebar menggunakan CSS transform).
+      // Sebagai gantinya, cek dimensi canvas dan retry jika 0.
       const makeChart = (canvasId) => {
         const el = document.getElementById(canvasId);
         if (!el) return null;
 
-        // ═══════════════════════════════════════════════════════
-        //  FIX: HAPUS pengecekan visibility yang memblokir
-        //  pembuatan chart saat container tersembunyi.
-        //  Chart.js akan tetap membuat instance; saat container
-        //  menjadi visible, chart akan di-recreate via $watch.
-        // ═══════════════════════════════════════════════════════
-
-        // Cek apakah canvas visible & punya ukuran yang wajar
-        // Jika tidak, tetap buat chart tapi flag agar bisa di-recreate
-        const rect = el.getBoundingClientRect();
-        const isZeroSize = rect.width === 0 || rect.height === 0;
-
-        // Jika ukuran 0, buat chart dengan ukuran fallback
-        // agar instance tetap ada (tidak null), lalu return
-        if (isZeroSize) {
-          // Simpan ukuran asli, set fallback sementara
-          const parent = el.parentElement;
-          if (parent) {
-            parent.style.minHeight = '250px';
-            parent.style.minWidth  = '100%';
-          }
+        // Jika canvas belum punya dimensi (container tersembunyi),
+        // jangan buat chart sekarang — akan di-retry nanti.
+        if (el.offsetWidth === 0 || el.offsetHeight === 0) {
+          return null;
         }
 
         try {
-          const chart = new Chart(el.getContext("2d"), {
+          return new Chart(el.getContext("2d"), {
             type: isPie ? "pie" : "bar",
             data: {
               labels: chartLabels,
@@ -625,23 +644,23 @@ function cleanBlueApp() {
             },
             plugins: [ChartDataLabels],
           });
-
-          // Jika tadinya 0-size, resize setelah chart dibuat
-          if (isZeroSize) {
-            setTimeout(() => {
-              try { chart.resize(); } catch (_) {}
-            }, 100);
-          }
-
-          return chart;
         } catch (e) {
-          console.warn(`Chart creation failed for ${canvasId}:`, e);
+          console.warn(`Chart error (${canvasId}):`, e);
           return null;
         }
       };
 
       this.barChart       = makeChart("barChart");
       this.barChartMobile = makeChart("barChartMobile");
+
+      // ── FIX MOBILE: Auto-retry jika kedua chart gagal dibuat ─
+      // Ini terjadi jika sidebar masih tersembunyi saat fungsi dipanggil.
+      if (!this.barChart && !this.barChartMobile && this._pieChartRetry < 8) {
+        this._pieChartRetry++;
+        setTimeout(() => { this.updatePieChart(); }, 400);
+      } else {
+        this._pieChartRetry = 0;
+      }
     },
 
     updateJumlahKelompok() {
@@ -668,19 +687,17 @@ function cleanBlueApp() {
       const el = document.getElementById("kecamatanChart");
       if (!el || labels.length === 0) return;
 
-      // ═══════════════════════════════════════════════════════
-      //  FIX MOBILE: Pastikan container punya ukuran minimum
-      //  sehingga Chart.js bisa merender dengan benar meskipun
-      //  container baru saja menjadi visible
-      // ═══════════════════════════════════════════════════════
-      const parent = el.parentElement;
-      if (parent) {
-        const rect = parent.getBoundingClientRect();
-        if (rect.width === 0 || rect.height === 0) {
-          parent.style.minHeight = '300px';
-          parent.style.minWidth  = '100%';
+      // ── FIX MOBILE: Cek dimensi canvas sebelum render ───────
+      // Jika canvas belum punya dimensi (misal container belum terlihat),
+      // defer rendering dengan retry.
+      if (el.offsetWidth === 0 || el.offsetHeight === 0) {
+        if (this._kecChartRetry < 8) {
+          this._kecChartRetry++;
+          setTimeout(() => { this.updateKecamatanChart(); }, 400);
         }
+        return;
       }
+      this._kecChartRetry = 0;
 
       const isDark    = this.darkMode;
       const textColor = isDark ? "#e2e8f0" : "#1f2937";
@@ -730,13 +747,8 @@ function cleanBlueApp() {
           },
           plugins: [ChartDataLabels],
         });
-
-        // Resize setelah render untuk pastikan ukuran benar
-        setTimeout(() => {
-          try { this._kecChart?.resize(); } catch (_) {}
-        }, 100);
       } catch (e) {
-        console.warn("Kecamatan chart creation failed:", e);
+        console.warn("Kecamatan chart error:", e);
       }
     },
 
@@ -1062,8 +1074,10 @@ window.addEventListener("load", () => {
   const btn    = document.getElementById("toggleLegendBtn");
   const legend = document.querySelector(".leaflet-bottom.leaflet-right");
 
+  // Auto-hide legend di mobile
   if (window.innerWidth < 768 && legend) legend.style.display = "none";
 
+  // Animasi slide-up tombol
   if (btn && window.innerWidth < 768) {
     setTimeout(() => {
       btn.classList.remove("translate-y-8", "opacity-0");
