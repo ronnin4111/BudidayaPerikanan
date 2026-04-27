@@ -192,9 +192,8 @@
     <!-- TOMBOL TOGGLE FILTER (mobile only) -->
     <div class="md:hidden flex px-3 py-2">
       <button
-        @click="filterOpen = !filterOpen; sidebarOpen = filterOpen"
-        :class="filterOpen ? 'bg-red-600' : 'bg-red-300'"
-        class="flex-1 text-white text-sm font-bold py-2 rounded-xl shadow transition"
+        @click="sidebarOpen = true"
+        class="flex-1 text-white text-sm font-bold py-2 rounded-xl shadow transition bg-red-600"
       >
         🔍 Filter
       </button>
