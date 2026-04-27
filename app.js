@@ -118,8 +118,16 @@ function cleanBlueApp() {
       updateClock();
       setInterval(updateClock, 1000);
 
+      // --- Inisialisasi warna default Chart.js sesuai mode awal ---
+      const applyChartDefaults = (isDark) => {
+        Chart.defaults.color          = isDark ? "#e2e8f0" : "#1f2937";
+        Chart.defaults.borderColor    = isDark ? "#334155" : "#e5e7eb";
+      };
+      applyChartDefaults(this.darkMode);
+
       // --- Rerender chart saat dark mode berubah ---
-      this.$watch('darkMode', () => {
+      this.$watch('darkMode', (isDark) => {
+        applyChartDefaults(isDark);
         this.updatePieChart();
         this.updateKecamatanChart();
       });
@@ -164,6 +172,8 @@ function cleanBlueApp() {
         this.updateFilterOptions();
         this.applyFilters();
         this.isLoading = false;
+        // Render ulang chart setelah layout stabil (penting untuk mobile)
+        setTimeout(() => { this.updatePieChart(); this.updateKecamatanChart(); }, 100);
       } catch (err) {
         console.error("Error loading sheet:", err);
         this.isLoading = false;
@@ -507,6 +517,11 @@ function cleanBlueApp() {
       const makeChart = (canvasId) => {
         const el = document.getElementById(canvasId);
         if (!el) return null;
+        // Skip jika elemen atau parent-nya tidak terlihat (display:none)
+        if (el.offsetParent === null && !document.body.contains(el)) return null;
+        const parent = el.closest('[class*="hidden"]');
+        const isHidden = parent && window.getComputedStyle(parent).display === 'none';
+        if (isHidden) return null;
         return new Chart(el.getContext("2d"), {
           type: isPie ? "pie" : "bar",
           data: {
@@ -525,7 +540,8 @@ function cleanBlueApp() {
             plugins: {
               legend: { display: isPie, labels: { color: textColor, font: { size: 13 } } },
               tooltip: {
-                bodyColor: tooltipText,
+                titleColor:      tooltipText,
+                bodyColor:       tooltipText,
                 backgroundColor: tooltipBg,
                 callbacks: {
                   label(context) {
