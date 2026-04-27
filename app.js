@@ -56,6 +56,10 @@ function cleanBlueApp() {
       { label: "Produksi (Kg)",       value: 0, percent: null },
     ],
 
+    // ── Sorting ───────────────────────────────────────────────
+    sortKey: "",
+    sortDir: "asc",
+
     // ── Filter ────────────────────────────────────────────────
     filtersDef: {
       kecamatan:      { label: "Kecamatan",      options: [] },
@@ -155,13 +159,16 @@ function cleanBlueApp() {
     },
 
     // ══════════════════════════════════════════════════════════
-    //  PETA
+    //  PETA — dengan MarkerCluster
     // ══════════════════════════════════════════════════════════
     updateMapMarkers() {
       if (!this.map) return;
 
       if (this.markerLayer) this.map.removeLayer(this.markerLayer);
-      this.markerLayer = L.layerGroup();
+      // Gunakan MarkerClusterGroup jika tersedia, fallback ke LayerGroup
+      this.markerLayer = (typeof L.markerClusterGroup === "function")
+        ? L.markerClusterGroup({ maxClusterRadius: 50, spiderfyOnMaxZoom: true, showCoverageOnHover: false })
+        : L.layerGroup();
       this.markers = [];
 
       this.filtered.forEach((r) => {
@@ -263,7 +270,7 @@ function cleanBlueApp() {
     },
 
     applyFilters() {
-      this.filtered = this.rawData.filter((r) => {
+      let result = this.rawData.filter((r) => {
         const match = Object.keys(this.selected).every((k) => {
           if (this.selected[k].length === 0) return true;
           if (k === "jenis_ikan") return this.selected[k].some((val) => r.jenis_ikan.includes(val));
@@ -275,10 +282,41 @@ function cleanBlueApp() {
         return match && search;
       });
 
+      // Terapkan sorting jika aktif
+      if (this.sortKey) {
+        result.sort((a, b) => {
+          let va = a[this.sortKey] ?? "";
+          let vb = b[this.sortKey] ?? "";
+          // Numerik
+          if (typeof va === "number" && typeof vb === "number") {
+            return this.sortDir === "asc" ? va - vb : vb - va;
+          }
+          va = va.toString().toLowerCase();
+          vb = vb.toString().toLowerCase();
+          return this.sortDir === "asc" ? va.localeCompare(vb) : vb.localeCompare(va);
+        });
+      }
+
+      this.filtered = result;
       this.updateStats();
       this.updateJumlahKelompok();
       this.updateMapMarkers();
       this.updateGeoFilter();
+    },
+
+    sortTable(key) {
+      if (this.sortKey === key) {
+        this.sortDir = this.sortDir === "asc" ? "desc" : "asc";
+      } else {
+        this.sortKey = key;
+        this.sortDir = "asc";
+      }
+      this.applyFilters();
+    },
+
+    sortIcon(key) {
+      if (this.sortKey !== key) return "↕";
+      return this.sortDir === "asc" ? "↑" : "↓";
     },
 
     // ══════════════════════════════════════════════════════════
@@ -539,11 +577,13 @@ function cleanBlueApp() {
         "id6104121_sadaniang.geojson",
       ];
 
+      let loaded = 0, failed = [];
+
       for (const fname of filenames) {
         const path = `geojson/${fname}`;
         try {
           const res = await fetch(path);
-          if (!res.ok) throw new Error(res.statusText);
+          if (!res.ok) throw new Error(`HTTP ${res.status}`);
           const geo    = await res.json();
           const sample = geo.features?.[0]?.properties ?? {};
           if (sample.district && !sample.village) {
@@ -551,8 +591,20 @@ function cleanBlueApp() {
           } else {
             this._addGeoLayer(geo, "desa", fname);
           }
+          loaded++;
         } catch (err) {
-          console.warn("Tidak bisa load", path, err);
+          console.warn(`⚠️ GeoJSON gagal dimuat: ${path} —`, err.message);
+          failed.push(fname.replace(".geojson","").replace(/_/g," "));
+        }
+      }
+
+      // Tampilkan notifikasi jika ada yang gagal
+      if (failed.length > 0) {
+        const el = document.getElementById("geojson-warn");
+        if (el) {
+          el.textContent = `⚠️ ${failed.length} layer peta gagal dimuat: ${failed.join(", ")}`;
+          el.style.display = "block";
+          setTimeout(() => el.style.display = "none", 6000);
         }
       }
 
