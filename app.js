@@ -15,6 +15,18 @@ function cleanBlueApp() {
     statsOpen: true,
     filterOpen: true,
 
+    // ── Paginasi ──────────────────────────────────────────────
+    pageSize: 25,
+    currentPage: 1,
+
+    // ── Summary Cards ─────────────────────────────────────────
+    summaryCards: [
+      { label: "Total Pelaku Usaha", value: 0, icon: "👤", color: "bg-cyan-500"    },
+      { label: "Total Kelompok",     value: 0, icon: "🏘️", color: "bg-emerald-500" },
+      { label: "Total Produksi (Kg)",value: 0, icon: "🐟", color: "bg-blue-500"    },
+      { label: "Total Luas (m²)",    value: 0, icon: "📐", color: "bg-violet-500"  },
+    ],
+
     // ── Data ──────────────────────────────────────────────────
     sheetURL:
       "https://docs.google.com/spreadsheets/d/1WvFGRiuiJiGGdhLp1EqtKPhqHi7yNn8UipH_VRK-zFo/gviz/tq?tqx=out:json",
@@ -298,10 +310,44 @@ function cleanBlueApp() {
       }
 
       this.filtered = result;
+      this.currentPage = 1; // reset ke halaman pertama setiap filter berubah
       this.updateStats();
       this.updateJumlahKelompok();
+      this.updateSummaryCards();
       this.updateMapMarkers();
       this.updateGeoFilter();
+    },
+
+    // ── Paginasi ──────────────────────────────────────────────
+    get pagedData() {
+      const start = (this.currentPage - 1) * this.pageSize;
+      return this.filtered.slice(start, start + this.pageSize);
+    },
+    get totalPages() {
+      return Math.max(1, Math.ceil(this.filtered.length / this.pageSize));
+    },
+    get pageNumbers() {
+      const total = this.totalPages;
+      const cur   = this.currentPage;
+      const pages = [];
+      for (let i = Math.max(1, cur - 2); i <= Math.min(total, cur + 2); i++) pages.push(i);
+      return pages;
+    },
+    goPage(p) {
+      this.currentPage = Math.min(Math.max(1, p), this.totalPages);
+    },
+
+    // ── Summary Cards ─────────────────────────────────────────
+    updateSummaryCards() {
+      const f   = this.filtered;
+      const sum = (k) => f.reduce((t, x) => t + (x[k] || 0), 0);
+      const kelompokSet = new Set(f.map((r) => r.kelompok).filter(Boolean));
+      this.summaryCards = [
+        { label: "Total Pelaku Usaha",  value: f.length.toLocaleString(),              icon: "👤", color: "bg-cyan-500"    },
+        { label: "Total Kelompok",      value: kelompokSet.size.toLocaleString(),       icon: "🏘️", color: "bg-emerald-500" },
+        { label: "Total Produksi (Kg)", value: sum("produksi").toLocaleString(),        icon: "🐟", color: "bg-blue-500"    },
+        { label: "Total Luas (m²)",     value: sum("lahan").toLocaleString(),           icon: "📐", color: "bg-violet-500"  },
+      ];
     },
 
     sortTable(key) {
@@ -471,6 +517,66 @@ function cleanBlueApp() {
         if (stat.label === "Jumlah Kelompok")     return { ...stat, value: kelompokSet.size };
         if (stat.label === "Jumlah Pelaku Usaha") return { ...stat, value: this.filtered.length };
         return stat;
+      });
+      this.updateKecamatanChart();
+    },
+
+    updateKecamatanChart() {
+      // Hitung jumlah pelaku per kecamatan dari data filtered
+      const map = new Map();
+      this.filtered.forEach((r) => {
+        const kec = r.kecamatan?.trim();
+        if (kec) map.set(kec, (map.get(kec) || 0) + 1);
+      });
+
+      // Urutkan descending
+      const sorted  = Array.from(map.entries()).sort((a, b) => b[1] - a[1]);
+      const labels  = sorted.map(([k]) => k);
+      const data    = sorted.map(([, v]) => v);
+      const colors  = labels.map((_, i) => `hsl(${(i * 47 + 190) % 360}, 65%, 55%)`);
+
+      if (this._kecChart) { this._kecChart.destroy(); this._kecChart = null; }
+      const el = document.getElementById("kecamatanChart");
+      if (!el || labels.length === 0) return;
+
+      Chart.register(ChartDataLabels);
+      this._kecChart = new Chart(el.getContext("2d"), {
+        type: "bar",
+        data: {
+          labels,
+          datasets: [{
+            label: "Jumlah Pelaku Usaha",
+            data,
+            backgroundColor: colors,
+            borderColor:      colors.map((c) => c.replace("55%", "40%")),
+            borderWidth: 1,
+            borderRadius: 6,
+          }],
+        },
+        options: {
+          responsive: true,
+          indexAxis: "y",
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              callbacks: {
+                label: (ctx) => ` ${ctx.parsed.x} orang`,
+              },
+            },
+            datalabels: {
+              anchor: "end", align: "end",
+              color: "#1f2937",
+              font: { weight: "bold", size: 11 },
+              formatter: (v) => v,
+            },
+          },
+          scales: {
+            x: { beginAtZero: true, ticks: { color: "#6b7280", font: { size: 10 } }, grid: { color: "#f3f4f6" } },
+            y: { ticks: { color: "#1f2937", font: { size: 11 } }, grid: { display: false } },
+          },
+          layout: { padding: { right: 32 } },
+        },
+        plugins: [ChartDataLabels],
       });
     },
 
