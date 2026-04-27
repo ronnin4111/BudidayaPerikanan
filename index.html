@@ -189,17 +189,10 @@
       </div>
     </header>
 
-    <!-- TOMBOL TOGGLE (di luar header, mobile only) -->
-    <div class="md:hidden flex gap-3 px-3 py-2">
+    <!-- TOMBOL TOGGLE FILTER (mobile only) -->
+    <div class="md:hidden flex px-3 py-2">
       <button
-        @click="statsOpen = !statsOpen; sidebarOpen = statsOpen || filterOpen"
-        :class="statsOpen ? 'bg-blue-600' : 'bg-blue-300'"
-        class="flex-1 text-white text-sm font-bold py-2 rounded-xl shadow transition"
-      >
-        📊 Statistik
-      </button>
-      <button
-        @click="filterOpen = !filterOpen; sidebarOpen = statsOpen || filterOpen"
+        @click="filterOpen = !filterOpen; sidebarOpen = filterOpen"
         :class="filterOpen ? 'bg-red-600' : 'bg-red-300'"
         class="flex-1 text-white text-sm font-bold py-2 rounded-xl shadow transition"
       >
@@ -209,12 +202,12 @@
 
     <div class="max-w-7xl mx-auto mt-4 px-3 md:px-4 md:grid md:grid-cols-4 gap-4">
 
-      <!-- OVERLAY saat sidebar terbuka di mobile -->
+      <!-- OVERLAY saat filter terbuka di mobile -->
       <div
         class="sidebar-overlay md:hidden"
         x-show="sidebarOpen"
         x-cloak
-        @click="sidebarOpen = false; statsOpen = false; filterOpen = false"
+        @click="sidebarOpen = false; filterOpen = false"
       ></div>
 
       <!-- SIDEBAR KIRI -->
@@ -224,22 +217,16 @@
       >
         <!-- Tombol tutup (mobile) -->
         <div class="flex items-center justify-between p-4 md:hidden border-b">
-          <span class="text-cyan-700 font-semibold text-sm">Panel Kontrol</span>
-          <button @click="sidebarOpen = false; statsOpen = false; filterOpen = false" class="text-gray-400 hover:text-gray-600 text-2xl leading-none">&times;</button>
+          <span class="text-cyan-700 font-semibold text-sm">🔍 Filter Utama</span>
+          <button @click="sidebarOpen = false; filterOpen = false" class="text-gray-400 hover:text-gray-600 text-2xl leading-none">&times;</button>
         </div>
 
-        <!-- ===== PANEL STATISTIK ===== -->
+        <!-- ===== PANEL STATISTIK (selalu tampil) ===== -->
         <div class="border-b">
-          <!-- Header Statistik — klik untuk collapse -->
-          <button
-            @click="statsOpen = !statsOpen"
-            class="w-full flex items-center justify-between px-4 py-3 hover:bg-cyan-50 transition"
-          >
+          <div class="px-4 py-3">
             <span class="text-cyan-700 font-semibold text-sm">📊 Statistik</span>
-            <span class="text-cyan-600 text-lg" x-text="statsOpen ? '▲' : '▼'"></span>
-          </button>
-          <!-- Konten Statistik -->
-          <div x-show="statsOpen" x-cloak class="px-4 pb-4 space-y-3">
+          </div>
+          <div class="px-4 pb-4 space-y-3">
             <div class="grid grid-cols-1 gap-2 text-sm">
               <template x-for="stat in stats" :key="stat.label">
                 <div class="flex justify-between border-b pb-1">
@@ -542,7 +529,7 @@
           <!-- Tombol Terapkan Filter (mobile only) -->
           <div class="md:hidden pt-2">
             <button
-              @click="sidebarOpen = false"
+              @click="sidebarOpen = false; filterOpen = false"
               class="w-full bg-cyan-600 hover:bg-cyan-700 text-white font-semibold rounded-lg py-2.5 text-sm transition"
             >
               ✅ Terapkan Filter
