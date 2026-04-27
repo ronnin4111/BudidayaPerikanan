@@ -183,20 +183,29 @@
           DATA PERIKANAN BUDIDAYA DPKPP KAB. MEMPAWAH
         </span>
       </div>
-      <div class="flex items-center gap-3 flex-shrink-0">
-        <div class="text-xs md:text-sm text-right hidden sm:block">
-          🕒 <span x-text="currentDate"></span><br>
-          <span x-text="currentTime"></span>
-        </div>
-        <!-- Tombol Filter untuk Mobile -->
-        <button
-          @click="sidebarOpen = true"
-          class="md:hidden bg-cyan-700 hover:bg-cyan-800 text-white rounded-lg px-3 py-2 text-sm font-semibold flex items-center gap-1 flex-shrink-0"
-        >
-          🔍 Filter
-        </button>
+      <div class="text-xs md:text-sm text-right flex-shrink-0">
+        🕒 <span x-text="currentDate"></span><br>
+        <span x-text="currentTime"></span>
       </div>
     </header>
+
+    <!-- TOMBOL TOGGLE (di luar header, mobile only) -->
+    <div class="md:hidden flex gap-3 px-3 py-2">
+      <button
+        @click="statsOpen = !statsOpen; sidebarOpen = statsOpen || filterOpen"
+        :class="statsOpen ? 'bg-blue-600' : 'bg-blue-300'"
+        class="flex-1 text-white text-sm font-bold py-2 rounded-xl shadow transition"
+      >
+        📊 Statistik
+      </button>
+      <button
+        @click="filterOpen = !filterOpen; sidebarOpen = statsOpen || filterOpen"
+        :class="filterOpen ? 'bg-red-600' : 'bg-red-300'"
+        class="flex-1 text-white text-sm font-bold py-2 rounded-xl shadow transition"
+      >
+        🔍 Filter
+      </button>
+    </div>
 
     <div class="max-w-7xl mx-auto mt-4 px-3 md:px-4 md:grid md:grid-cols-4 gap-4">
 
@@ -205,7 +214,7 @@
         class="sidebar-overlay md:hidden"
         x-show="sidebarOpen"
         x-cloak
-        @click="sidebarOpen = false"
+        @click="sidebarOpen = false; statsOpen = false; filterOpen = false"
       ></div>
 
       <!-- SIDEBAR KIRI -->
@@ -215,8 +224,8 @@
       >
         <!-- Tombol tutup (mobile) -->
         <div class="flex items-center justify-between p-4 md:hidden border-b">
-          <span class="text-cyan-700 font-semibold">📊 Statistik & 🔍 Filter</span>
-          <button @click="sidebarOpen = false" class="text-gray-400 hover:text-gray-600 text-2xl leading-none">&times;</button>
+          <span class="text-cyan-700 font-semibold text-sm">Panel Kontrol</span>
+          <button @click="sidebarOpen = false; statsOpen = false; filterOpen = false" class="text-gray-400 hover:text-gray-600 text-2xl leading-none">&times;</button>
         </div>
 
         <!-- ===== PANEL STATISTIK ===== -->
