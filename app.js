@@ -132,6 +132,42 @@ function cleanBlueApp() {
         this.updateKecamatanChart();
       });
 
+      // ═══════════════════════════════════════════════════════
+      //  FIX MOBILE: Re-render chart saat sidebar dibuka
+      //  Chart.js tidak bisa membuat chart dengan ukuran
+      //  yang benar di container display:none, jadi kita
+      //  harus re-create setelah container visible.
+      // ═══════════════════════════════════════════════════════
+      this.$watch('sidebarOpen', (val) => {
+        if (val) {
+          // Tunggu transisi Alpine selesai, lalu render ulang
+          setTimeout(() => { this.updatePieChart(); }, 250);
+        }
+      });
+
+      // ═══════════════════════════════════════════════════════
+      //  FIX MOBILE: Re-render chart kecamatan saat section
+      //  statistik dibuka (jika chart ada di dalamnya)
+      // ═══════════════════════════════════════════════════════
+      this.$watch('statsOpen', (val) => {
+        if (val) {
+          setTimeout(() => { this.updateKecamatanChart(); }, 250);
+        }
+      });
+
+      // ═══════════════════════════════════════════════════════
+      //  FIX MOBILE: Re-render semua chart saat ukuran layar
+      //  berubah (misalnya rotate HP / resize browser)
+      // ═══════════════════════════════════════════════════════
+      let resizeTimer;
+      window.addEventListener('resize', () => {
+        clearTimeout(resizeTimer);
+        resizeTimer = setTimeout(() => {
+          this.updatePieChart();
+          this.updateKecamatanChart();
+        }, 300);
+      });
+
       // --- Ambil Data Google Sheet ---
       try {
         const res  = await fetch(this.sheetURL);
@@ -173,14 +209,13 @@ function cleanBlueApp() {
         this.applyFilters();
         this.isLoading = false;
         // Render ulang chart setelah layout stabil (penting untuk mobile)
-        setTimeout(() => { this.updatePieChart(); this.updateKecamatanChart(); }, 100);
+        setTimeout(() => { this.updatePieChart(); this.updateKecamatanChart(); }, 300);
       } catch (err) {
         console.error("Error loading sheet:", err);
         this.isLoading = false;
       }
 
       // --- Inisialisasi Peta ---
-      // ⚠️  Koordinat sudah dikoreksi ke Mempawah, Kalimantan Barat
       this.map = L.map("map").setView([0.4, 109.1], 10);
       L.tileLayer("https://{s}.google.com/vt/lyrs=y&x={x}&y={y}&z={z}", {
         maxZoom: 20,
@@ -194,8 +229,6 @@ function cleanBlueApp() {
     // ══════════════════════════════════════════════════════════
     //  PETA — dengan MarkerCluster + Warna per Jenis Usaha
     // ══════════════════════════════════════════════════════════
-
-    // Palet warna tetap untuk jenis usaha
     _usahaColors: [
       "#0e7490","#059669","#d97706","#dc2626","#7c3aed",
       "#db2777","#0284c7","#16a34a","#ea580c","#9333ea",
@@ -230,13 +263,11 @@ function cleanBlueApp() {
       if (!this.map) return;
 
       if (this.markerLayer) this.map.removeLayer(this.markerLayer);
-      this._usahaColorIndex = {}; // reset warna setiap render
+      this._usahaColorIndex = {};
 
-      // Bangun peta warna dari semua jenis usaha dulu
       const allUsaha = [...new Set(this.filtered.map(r => r.jenis_usaha).filter(Boolean))].sort();
       allUsaha.forEach(u => this._getUsahaColor(u));
 
-      // Update legenda
       this.markerLegendItems = allUsaha.map(u => ({
         label: u,
         color: this._getUsahaColor(u),
@@ -320,10 +351,8 @@ function cleanBlueApp() {
       const uniq = (a) =>
         Array.from(new Set(a.filter((v) => v))).sort((a, b) => a.localeCompare(b));
 
-      // Kecamatan: selalu dari semua data
       this.filtersDef.kecamatan.options = uniq(this.rawData.map((r) => r.kecamatan));
 
-      // Filter bertingkat (cascading)
       let d1 = [...this.rawData];
       if (this.selected.kecamatan.length) d1 = d1.filter((r) => this.selected.kecamatan.includes(r.kecamatan));
       this.filtersDef.desa.options = uniq(d1.map((r) => r.desa));
@@ -360,12 +389,10 @@ function cleanBlueApp() {
         return match && search;
       });
 
-      // Terapkan sorting jika aktif
       if (this.sortKey) {
         result.sort((a, b) => {
           let va = a[this.sortKey] ?? "";
           let vb = b[this.sortKey] ?? "";
-          // Numerik
           if (typeof va === "number" && typeof vb === "number") {
             return this.sortDir === "asc" ? va - vb : vb - va;
           }
@@ -376,7 +403,7 @@ function cleanBlueApp() {
       }
 
       this.filtered = result;
-      this.currentPage = 1; // reset ke halaman pertama setiap filter berubah
+      this.currentPage = 1;
       this.updateStats();
       this.updateJumlahKelompok();
       this.updateSummaryCards();
@@ -505,7 +532,6 @@ function cleanBlueApp() {
       Chart.register(ChartDataLabels);
       const isPie = type === "pie";
 
-      // ── Warna dinamis (light / dark mode) ──────────────────
       const isDark       = this.darkMode;
       const textColor    = isDark ? "#e2e8f0" : "#1f2937";
       const subColor     = isDark ? "#94a3b8" : "#6b7280";
@@ -517,69 +543,102 @@ function cleanBlueApp() {
       const makeChart = (canvasId) => {
         const el = document.getElementById(canvasId);
         if (!el) return null;
-        // Skip jika elemen atau parent-nya tidak terlihat (display:none)
-        if (el.offsetParent === null && !document.body.contains(el)) return null;
-        const parent = el.closest('[class*="hidden"]');
-        const isHidden = parent && window.getComputedStyle(parent).display === 'none';
-        if (isHidden) return null;
-        return new Chart(el.getContext("2d"), {
-          type: isPie ? "pie" : "bar",
-          data: {
-            labels: chartLabels,
-            datasets: [{
-              data:            chartData,
-              backgroundColor: colors,
-              borderColor:     isPie ? undefined : colors.map((c) => c.replace("60%", "45%")),
-              borderWidth:     isPie ? 0 : 1,
-            }],
-          },
-          options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            indexAxis: isPie ? undefined : "y",
-            plugins: {
-              legend: { display: isPie, labels: { color: textColor, font: { size: 13 } } },
-              tooltip: {
-                titleColor:      tooltipText,
-                bodyColor:       tooltipText,
-                backgroundColor: tooltipBg,
-                callbacks: {
-                  label(context) {
-                    const value   = isPie ? (context.parsed || 0) : (context.parsed.x || 0);
-                    const data    = context.chart.data.datasets[0].data;
-                    const total   = data.reduce((s, v) => s + v, 0);
-                    const percent = ((value / total) * 100).toFixed(1);
-                    return `${context.label}: ${value.toLocaleString()} (${percent}%)`;
+
+        // ═══════════════════════════════════════════════════════
+        //  FIX: HAPUS pengecekan visibility yang memblokir
+        //  pembuatan chart saat container tersembunyi.
+        //  Chart.js akan tetap membuat instance; saat container
+        //  menjadi visible, chart akan di-recreate via $watch.
+        // ═══════════════════════════════════════════════════════
+
+        // Cek apakah canvas visible & punya ukuran yang wajar
+        // Jika tidak, tetap buat chart tapi flag agar bisa di-recreate
+        const rect = el.getBoundingClientRect();
+        const isZeroSize = rect.width === 0 || rect.height === 0;
+
+        // Jika ukuran 0, buat chart dengan ukuran fallback
+        // agar instance tetap ada (tidak null), lalu return
+        if (isZeroSize) {
+          // Simpan ukuran asli, set fallback sementara
+          const parent = el.parentElement;
+          if (parent) {
+            parent.style.minHeight = '250px';
+            parent.style.minWidth  = '100%';
+          }
+        }
+
+        try {
+          const chart = new Chart(el.getContext("2d"), {
+            type: isPie ? "pie" : "bar",
+            data: {
+              labels: chartLabels,
+              datasets: [{
+                data:            chartData,
+                backgroundColor: colors,
+                borderColor:     isPie ? undefined : colors.map((c) => c.replace("60%", "45%")),
+                borderWidth:     isPie ? 0 : 1,
+              }],
+            },
+            options: {
+              responsive: true,
+              maintainAspectRatio: false,
+              indexAxis: isPie ? undefined : "y",
+              plugins: {
+                legend: { display: isPie, labels: { color: textColor, font: { size: 13 } } },
+                tooltip: {
+                  titleColor:      tooltipText,
+                  bodyColor:       tooltipText,
+                  backgroundColor: tooltipBg,
+                  callbacks: {
+                    label(context) {
+                      const value   = isPie ? (context.parsed || 0) : (context.parsed.x || 0);
+                      const data    = context.chart.data.datasets[0].data;
+                      const total   = data.reduce((s, v) => s + v, 0);
+                      const percent = ((value / total) * 100).toFixed(1);
+                      return `${context.label}: ${value.toLocaleString()} (${percent}%)`;
+                    },
+                  },
+                },
+                datalabels: {
+                  color:           datalabelClr,
+                  textShadowColor: isPie ? "rgba(0,0,0,0.6)" : undefined,
+                  textShadowBlur:  isPie ? 4 : undefined,
+                  anchor:          isPie ? "center" : "end",
+                  align:           isPie ? "center" : "end",
+                  formatter(value, context) {
+                    const total = context.chart.data.datasets[0].data.reduce((a, b) => a + b, 0);
+                    const pct   = ((value / total) * 100).toFixed(1);
+                    return isPie ? `${pct}%` : `${value} (${pct}%)`;
+                  },
+                  font:    { weight: "bold", size: isPie ? 12 : 10 },
+                  display(context) {
+                    if (!isPie) return true;
+                    const total = context.chart.data.datasets[0].data.reduce((a, b) => a + b, 0);
+                    return context.dataset.data[context.dataIndex] / total >= 0.03;
                   },
                 },
               },
-              datalabels: {
-                color:           datalabelClr,
-                textShadowColor: isPie ? "rgba(0,0,0,0.6)" : undefined,
-                textShadowBlur:  isPie ? 4 : undefined,
-                anchor:          isPie ? "center" : "end",
-                align:           isPie ? "center" : "end",
-                formatter(value, context) {
-                  const total = context.chart.data.datasets[0].data.reduce((a, b) => a + b, 0);
-                  const pct   = ((value / total) * 100).toFixed(1);
-                  return isPie ? `${pct}%` : `${value} (${pct}%)`;
-                },
-                font:    { weight: "bold", size: isPie ? 12 : 10 },
-                display(context) {
-                  if (!isPie) return true;
-                  const total = context.chart.data.datasets[0].data.reduce((a, b) => a + b, 0);
-                  return context.dataset.data[context.dataIndex] / total >= 0.03;
-                },
+              scales: isPie ? {} : {
+                x: { beginAtZero: true, ticks: { color: subColor, font: { size: 10 } }, grid: { color: gridColor } },
+                y: { ticks: { color: textColor, font: { size: 10 } }, grid: { display: false } },
               },
+              layout: isPie ? {} : { padding: { right: 60 } },
             },
-            scales: isPie ? {} : {
-              x: { beginAtZero: true, ticks: { color: subColor, font: { size: 10 } }, grid: { color: gridColor } },
-              y: { ticks: { color: textColor, font: { size: 10 } }, grid: { display: false } },
-            },
-            layout: isPie ? {} : { padding: { right: 60 } },
-          },
-          plugins: [ChartDataLabels],
-        });
+            plugins: [ChartDataLabels],
+          });
+
+          // Jika tadinya 0-size, resize setelah chart dibuat
+          if (isZeroSize) {
+            setTimeout(() => {
+              try { chart.resize(); } catch (_) {}
+            }, 100);
+          }
+
+          return chart;
+        } catch (e) {
+          console.warn(`Chart creation failed for ${canvasId}:`, e);
+          return null;
+        }
       };
 
       this.barChart       = makeChart("barChart");
@@ -591,19 +650,16 @@ function cleanBlueApp() {
       this.filtered.forEach((r) => {
         if (r.kelompok && r.kelompok.trim() !== "") kelompokSet.add(r.kelompok.trim());
       });
-      // stats sudah tidak include Jumlah Kelompok/Pelaku Usaha — sudah di summaryCards
       this.updateKecamatanChart();
     },
 
     updateKecamatanChart() {
-      // Hitung jumlah pelaku per kecamatan dari data filtered
       const map = new Map();
       this.filtered.forEach((r) => {
         const kec = r.kecamatan?.trim();
         if (kec) map.set(kec, (map.get(kec) || 0) + 1);
       });
 
-      // Urutkan descending
       const sorted  = Array.from(map.entries()).sort((a, b) => b[1] - a[1]);
       const labels  = sorted.map(([k]) => k);
       const data    = sorted.map(([, v]) => v);
@@ -613,7 +669,20 @@ function cleanBlueApp() {
       const el = document.getElementById("kecamatanChart");
       if (!el || labels.length === 0) return;
 
-      // ── Warna dinamis (light / dark mode) ──────────────────
+      // ═══════════════════════════════════════════════════════
+      //  FIX MOBILE: Pastikan container punya ukuran minimum
+      //  sehingga Chart.js bisa merender dengan benar meskipun
+      //  container baru saja menjadi visible
+      // ═══════════════════════════════════════════════════════
+      const parent = el.parentElement;
+      if (parent) {
+        const rect = parent.getBoundingClientRect();
+        if (rect.width === 0 || rect.height === 0) {
+          parent.style.minHeight = '300px';
+          parent.style.minWidth  = '100%';
+        }
+      }
+
       const isDark    = this.darkMode;
       const textColor = isDark ? "#e2e8f0" : "#1f2937";
       const subColor  = isDark ? "#94a3b8" : "#6b7280";
@@ -621,45 +690,55 @@ function cleanBlueApp() {
       const dlColor   = isDark ? "#e2e8f0" : "#1f2937";
 
       Chart.register(ChartDataLabels);
-      this._kecChart = new Chart(el.getContext("2d"), {
-        type: "bar",
-        data: {
-          labels,
-          datasets: [{
-            label: "Jumlah Pelaku Usaha",
-            data,
-            backgroundColor: colors,
-            borderColor:      colors.map((c) => c.replace("55%", "40%")),
-            borderWidth: 1,
-            borderRadius: 6,
-          }],
-        },
-        options: {
-          responsive: true,
-          maintainAspectRatio: false,
-          indexAxis: "y",
-          plugins: {
-            legend: { display: false },
-            tooltip: {
-              callbacks: {
-                label: (ctx) => ` ${ctx.parsed.x} orang`,
+
+      try {
+        this._kecChart = new Chart(el.getContext("2d"), {
+          type: "bar",
+          data: {
+            labels,
+            datasets: [{
+              label: "Jumlah Pelaku Usaha",
+              data,
+              backgroundColor: colors,
+              borderColor:      colors.map((c) => c.replace("55%", "40%")),
+              borderWidth: 1,
+              borderRadius: 6,
+            }],
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            indexAxis: "y",
+            plugins: {
+              legend: { display: false },
+              tooltip: {
+                callbacks: {
+                  label: (ctx) => ` ${ctx.parsed.x} orang`,
+                },
+              },
+              datalabels: {
+                anchor: "end", align: "end",
+                color: dlColor,
+                font: { weight: "bold", size: 11 },
+                formatter: (v) => v,
               },
             },
-            datalabels: {
-              anchor: "end", align: "end",
-              color: dlColor,
-              font: { weight: "bold", size: 11 },
-              formatter: (v) => v,
+            scales: {
+              x: { beginAtZero: true, ticks: { color: subColor, font: { size: 10 } }, grid: { color: gridColor } },
+              y: { ticks: { color: textColor, font: { size: 11 } }, grid: { display: false } },
             },
+            layout: { padding: { right: 32 } },
           },
-          scales: {
-            x: { beginAtZero: true, ticks: { color: subColor, font: { size: 10 } }, grid: { color: gridColor } },
-            y: { ticks: { color: textColor, font: { size: 11 } }, grid: { display: false } },
-          },
-          layout: { padding: { right: 32 } },
-        },
-        plugins: [ChartDataLabels],
-      });
+          plugins: [ChartDataLabels],
+        });
+
+        // Resize setelah render untuk pastikan ukuran benar
+        setTimeout(() => {
+          try { this._kecChart?.resize(); } catch (_) {}
+        }, 100);
+      } catch (e) {
+        console.warn("Kecamatan chart creation failed:", e);
+      }
     },
 
     // ══════════════════════════════════════════════════════════
@@ -786,7 +865,6 @@ function cleanBlueApp() {
         }
       }
 
-      // Tampilkan notifikasi jika ada yang gagal
       if (failed.length > 0) {
         const el = document.getElementById("geojson-warn");
         if (el) {
@@ -946,7 +1024,6 @@ function cleanBlueApp() {
         const selectedKec  = this.selected.kecamatan.map((k) => k.toLowerCase().trim());
         const selectedDesa = this.selected.desa.map((d) => d.toLowerCase().trim());
 
-        // Filter layer kecamatan
         this.geoLayers.kecamatan?.eachLayer((layer) => {
           const kec  = (layer.feature?.properties?.district || layer.feature?.properties?.NAME || layer.feature?.properties?.name || "").toLowerCase().trim();
           const show = selectedKec.length === 0 || selectedKec.some((k) => kec.includes(k));
@@ -954,7 +1031,6 @@ function cleanBlueApp() {
           else      { if (this.map.hasLayer(layer)) this.map.removeLayer(layer); }
         });
 
-        // Filter layer desa
         this._layersByType?.["desa"]?.forEach((obj) => {
           obj.layer.eachLayer((layer) => {
             const desa = (layer.feature?.properties?.village || layer.feature?.properties?.NAME || layer.feature?.properties?.name || "").toLowerCase().trim();
@@ -987,10 +1063,8 @@ window.addEventListener("load", () => {
   const btn    = document.getElementById("toggleLegendBtn");
   const legend = document.querySelector(".leaflet-bottom.leaflet-right");
 
-  // Auto-hide legend di mobile
   if (window.innerWidth < 768 && legend) legend.style.display = "none";
 
-  // Animasi slide-up tombol
   if (btn && window.innerWidth < 768) {
     setTimeout(() => {
       btn.classList.remove("translate-y-8", "opacity-0");
