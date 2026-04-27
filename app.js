@@ -139,11 +139,10 @@ function cleanBlueApp() {
       //  harus re-create setelah container visible.
       // ═══════════════════════════════════════════════════════
       this.$watch('sidebarOpen', (val) => {
-        if (val) {
-          // Tunggu transisi Alpine selesai, lalu render ulang
-          setTimeout(() => { this.updatePieChart(); }, 250);
-        }
-      });
+  if (val) {
+    setTimeout(() => { this.updatePieChart(); this.updateKecamatanChart(); }, 250);
+  }
+});
 
       // ═══════════════════════════════════════════════════════
       //  FIX MOBILE: Re-render chart kecamatan saat section
