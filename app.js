@@ -626,118 +626,187 @@ function cleanBlueApp() {
     updateKecamatanChart() {
       const mode = this.kecChartMode || "pelaku_usaha";
 
-      // ── Konfigurasi per mode ────────────────────────────────
+      // ── Konfigurasi mode ────────────────────────────────────
       const modeConfig = {
-        pelaku_usaha:   { title: "Jumlah Pelaku Usaha per Kecamatan", field: "kecamatan",     tooltip: "orang",     unique: false },
-        kelompok:       { title: "Jumlah Kelompok per Kecamatan",      field: "kecamatan",     tooltip: "kelompok",  unique: true  },
-        wadah_budidaya: { title: "Jumlah per Wadah Budidaya",          field: "wadah_budidaya", tooltip: "orang",    unique: false },
-        jenis_usaha:    { title: "Jumlah per Jenis Usaha",             field: "jenis_usaha",   tooltip: "orang",     unique: false },
-        jenis_ikan:     { title: "Jumlah per Jenis Ikan",              field: "jenis_ikan",    tooltip: "orang",     unique: false },
+        pelaku_usaha:   { title: "Pelaku Usaha per Kecamatan",        type: "simple",       field: null,              suffix: "orang"     },
+        kelompok:       { title: "Kelompok per Kecamatan",            type: "unique",       field: "kelompok",        suffix: "kelompok"  },
+        wadah_budidaya: { title: "Wadah Budidaya per Kecamatan",      type: "stacked",      field: "wadah_budidaya",  suffix: "orang"     },
+        jenis_usaha:    { title: "Jenis Usaha per Kecamatan",         type: "stacked",      field: "jenis_usaha",     suffix: "orang"     },
+        jenis_ikan:     { title: "Jenis Ikan per Kecamatan",          type: "stacked_multi",field: "jenis_ikan",      suffix: "orang"     },
+        produksi:       { title: "Total Produksi per Kecamatan (Kg)", type: "sum",          field: "produksi",        suffix: "kg"        },
       };
-      const cfg = modeConfig[mode];
+      const cfg = modeConfig[mode] || modeConfig["pelaku_usaha"];
       this.kecChartTitle = cfg.title;
 
-      // ── Hitung data sesuai mode ─────────────────────────────
-      let map = new Map();
+      // ── Urutan kecamatan berdasarkan total pelaku (konsisten) ──
+      const kecCount = new Map();
+      this.filtered.forEach((r) => {
+        const kec = r.kecamatan?.trim();
+        if (kec) kecCount.set(kec, (kecCount.get(kec) || 0) + 1);
+      });
+      let kecLabels = Array.from(kecCount.entries()).sort((a, b) => b[1] - a[1]).map(([k]) => k);
 
-      if (mode === "kelompok") {
-        // Hitung kelompok unik per kecamatan
+      // ── Bangun datasets sesuai mode ─────────────────────────
+      let datasets = [];
+      const palette = (n) => Array.from({ length: n }, (_, i) => `hsl(${(i * 43 + 200) % 360},70%,58%)`);
+
+      if (mode === "simple" || mode === "pelaku_usaha") {
+        const data   = kecLabels.map((kec) => kecCount.get(kec) || 0);
+        const colors = palette(kecLabels.length);
+        datasets = [{ label: "Pelaku Usaha", data, backgroundColor: colors, borderRadius: 6 }];
+
+      } else if (mode === "kelompok") {
         const kelPerKec = new Map();
         this.filtered.forEach((r) => {
-          const kec = r.kecamatan?.trim();
-          const kel = r.kelompok?.trim();
+          const kec = r.kecamatan?.trim(), kel = r.kelompok?.trim();
           if (!kec || !kel) return;
           if (!kelPerKec.has(kec)) kelPerKec.set(kec, new Set());
           kelPerKec.get(kec).add(kel);
         });
-        kelPerKec.forEach((set, kec) => map.set(kec, set.size));
-      } else if (mode === "pelaku_usaha") {
-        // Hitung jumlah baris per kecamatan
+        // Sort ulang berdasarkan jumlah kelompok
+        kecLabels = Array.from(kelPerKec.entries()).sort((a, b) => b[1].size - a[1].size).map(([k]) => k);
+        const data   = kecLabels.map((kec) => (kelPerKec.get(kec) || new Set()).size);
+        const colors = palette(kecLabels.length);
+        datasets = [{ label: "Kelompok", data, backgroundColor: colors, borderRadius: 6 }];
+
+      } else if (mode === "stacked" || mode === "wadah_budidaya" || mode === "jenis_usaha") {
+        // Hitung field per kecamatan
+        const perKec = new Map();
+        const allVals = new Map(); // val -> total count
         this.filtered.forEach((r) => {
           const kec = r.kecamatan?.trim();
-          if (kec) map.set(kec, (map.get(kec) || 0) + 1);
-        });
-      } else {
-        // Hitung jumlah baris per nilai field (wadah / jenis_usaha / jenis_ikan)
-        this.filtered.forEach((r) => {
           const val = r[cfg.field]?.trim();
-          if (val) map.set(val, (map.get(val) || 0) + 1);
+          if (!kec || !val) return;
+          if (!perKec.has(kec)) perKec.set(kec, new Map());
+          perKec.get(kec).set(val, (perKec.get(kec).get(val) || 0) + 1);
+          allVals.set(val, (allVals.get(val) || 0) + 1);
         });
+        // Top 8 nilai, sisanya "Lainnya"
+        const sorted = Array.from(allVals.entries()).sort((a, b) => b[1] - a[1]);
+        const topVals = sorted.slice(0, 8).map(([v]) => v);
+        const othVals = sorted.slice(8).map(([v]) => v);
+        const clrs    = palette(topVals.length);
+        datasets = topVals.map((val, i) => ({
+          label: val,
+          data: kecLabels.map((kec) => perKec.get(kec)?.get(val) || 0),
+          backgroundColor: clrs[i], borderRadius: 4,
+        }));
+        if (othVals.length > 0) datasets.push({
+          label: "Lainnya",
+          data: kecLabels.map((kec) => othVals.reduce((s, v) => s + (perKec.get(kec)?.get(v) || 0), 0)),
+          backgroundColor: "#94a3b8", borderRadius: 4,
+        });
+
+      } else if (mode === "stacked_multi" || mode === "jenis_ikan") {
+        // Satu baris bisa punya banyak ikan → split by ", "
+        const perKec = new Map();
+        const allVals = new Map();
+        this.filtered.forEach((r) => {
+          const kec = r.kecamatan?.trim();
+          if (!kec) return;
+          (r.jenis_ikan || "").split(",").map((s) => s.trim()).filter(Boolean).forEach((ikan) => {
+            if (!perKec.has(kec)) perKec.set(kec, new Map());
+            perKec.get(kec).set(ikan, (perKec.get(kec).get(ikan) || 0) + 1);
+            allVals.set(ikan, (allVals.get(ikan) || 0) + 1);
+          });
+        });
+        const sorted = Array.from(allVals.entries()).sort((a, b) => b[1] - a[1]);
+        const topVals = sorted.slice(0, 8).map(([v]) => v);
+        const othVals = sorted.slice(8).map(([v]) => v);
+        const clrs    = palette(topVals.length);
+        datasets = topVals.map((val, i) => ({
+          label: val,
+          data: kecLabels.map((kec) => perKec.get(kec)?.get(val) || 0),
+          backgroundColor: clrs[i], borderRadius: 4,
+        }));
+        if (othVals.length > 0) datasets.push({
+          label: "Lainnya",
+          data: kecLabels.map((kec) => othVals.reduce((s, v) => s + (perKec.get(kec)?.get(v) || 0), 0)),
+          backgroundColor: "#94a3b8", borderRadius: 4,
+        });
+
+      } else if (mode === "produksi" || mode === "sum") {
+        const sumMap = new Map();
+        this.filtered.forEach((r) => {
+          const kec = r.kecamatan?.trim();
+          if (kec) sumMap.set(kec, (sumMap.get(kec) || 0) + (r.produksi || 0));
+        });
+        kecLabels = Array.from(sumMap.entries()).sort((a, b) => b[1] - a[1]).map(([k]) => k);
+        const data   = kecLabels.map((kec) => sumMap.get(kec) || 0);
+        const colors = palette(kecLabels.length);
+        datasets = [{ label: "Produksi (Kg)", data, backgroundColor: colors, borderRadius: 6 }];
       }
 
-      const sorted = Array.from(map.entries()).sort((a, b) => b[1] - a[1]);
-      const labels = sorted.map(([k]) => k);
-      const data   = sorted.map(([, v]) => v);
-      const colors = labels.map((_, i) => `hsl(${(i * 47 + 190) % 360}, 65%, 55%)`);
-
-      // ── Hancurkan chart kecamatan lama ──────────────────────
+      // ── Hancurkan chart lama ────────────────────────────────
       const kecEl = document.getElementById("kecamatanChart");
-      const existingKec = kecEl && Chart.getChart(kecEl);
-      if (existingKec) existingKec.destroy();
+      const existing = kecEl && Chart.getChart(kecEl);
+      if (existing) existing.destroy();
       this._kecChart = null;
-      const el = kecEl;
-      if (!el || labels.length === 0) return;
+      if (!kecEl || kecLabels.length === 0) return;
 
-      // ── Paksa dimensi canvas sesuai container ──────────────
-      const kecContainer = el.parentElement;
-      if (kecContainer) {
-        const kw = kecContainer.offsetWidth  || kecContainer.clientWidth  || 300;
-        const kh = kecContainer.offsetHeight || kecContainer.clientHeight || 240;
-        if (kw > 0) el.width  = kw;
-        if (kh > 0) el.height = kh;
-      }
+      // ── Tinggi dinamis sesuai jumlah baris ─────────────────
+      const isStacked  = datasets.length > 1;
+      const legendRows = isStacked ? Math.ceil(datasets.length / 2) * 22 + 8 : 0;
+      const barH       = 32;
+      const dynamicH   = Math.max(180, kecLabels.length * barH + legendRows + 50);
+      kecEl.parentElement.style.height = dynamicH + "px";
 
-      // ── Warna dinamis (light / dark mode) ──────────────────
+      // ── Paksa dimensi canvas ────────────────────────────────
+      const cont = kecEl.parentElement;
+      const kw   = cont.offsetWidth  || cont.clientWidth  || 320;
+      kecEl.width  = kw;
+      kecEl.height = dynamicH;
+
+      // ── Warna dinamis dark/light ────────────────────────────
       const isDark    = this.darkMode;
       const textColor = isDark ? "#e2e8f0" : "#1f2937";
       const subColor  = isDark ? "#94a3b8" : "#6b7280";
       const gridColor = isDark ? "#475569" : "#f3f4f6";
       const dlColor   = isDark ? "#e2e8f0" : "#1f2937";
 
-      // ── Tinggi canvas dinamis (lebih banyak bar → lebih tinggi) ──
-      const minHeight = 240;
-      const barHeight = 34;
-      const dynamicH  = Math.max(minHeight, labels.length * barHeight + 60);
-      el.parentElement.style.height = dynamicH + "px";
-      el.height = dynamicH;
-
       Chart.register(ChartDataLabels);
-      this._kecChart = new Chart(el.getContext("2d"), {
+      this._kecChart = new Chart(kecEl.getContext("2d"), {
         type: "bar",
-        data: {
-          labels,
-          datasets: [{
-            label: cfg.title,
-            data,
-            backgroundColor: colors,
-            borderColor:      colors.map((c) => c.replace("55%", "40%")),
-            borderWidth: 1,
-            borderRadius: 6,
-          }],
-        },
+        data: { labels: kecLabels, datasets },
         options: {
-          responsive: true,
-          maintainAspectRatio: false,
-          indexAxis: "y",
+          responsive:           true,
+          maintainAspectRatio:  false,
+          indexAxis:            "y",
+          ...(isStacked ? { } : {}),
           plugins: {
-            legend: { display: false },
+            legend: {
+              display: isStacked,
+              position: "bottom",
+              labels: { color: textColor, font: { size: 11 }, boxWidth: 14, padding: 8 },
+            },
             tooltip: {
               callbacks: {
-                label: (ctx) => ` ${ctx.parsed.x.toLocaleString()} ${cfg.tooltip}`,
+                label: (ctx) => ` ${ctx.dataset.label}: ${ctx.parsed.x.toLocaleString()} ${cfg.suffix}`,
               },
             },
-            datalabels: {
-              anchor: "end", align: "end",
-              color: dlColor,
-              font: { weight: "bold", size: 11 },
-              formatter: (v) => v.toLocaleString(),
-            },
+            datalabels: isStacked
+              ? { display: false }   // terlalu ramai di stacked
+              : {
+                  anchor: "end", align: "end",
+                  color:  dlColor,
+                  font:   { weight: "bold", size: 11 },
+                  formatter: (v) => v > 0 ? v.toLocaleString() : "",
+                },
           },
           scales: {
-            x: { beginAtZero: true, ticks: { color: subColor, font: { size: 10 } }, grid: { color: gridColor } },
-            y: { ticks: { color: textColor, font: { size: 11 } }, grid: { display: false } },
+            x: {
+              stacked:     isStacked,
+              beginAtZero: true,
+              ticks: { color: subColor, font: { size: 10 } },
+              grid:  { color: gridColor },
+            },
+            y: {
+              stacked: isStacked,
+              ticks: { color: textColor, font: { size: 11 } },
+              grid:  { display: false },
+            },
           },
-          layout: { padding: { right: 36 } },
+          layout: { padding: { right: isStacked ? 8 : 40 } },
         },
         plugins: [ChartDataLabels],
       });
