@@ -73,6 +73,10 @@ function cleanBlueApp() {
       { label: "Produksi (Kg)",       value: 0, percent: null },
     ],
 
+    // ── Grafik Kecamatan ──────────────────────────────────────
+    kecChartMode:  "pelaku_usaha",
+    kecChartTitle: "Jumlah Pelaku Usaha per Kecamatan",
+
     // ── Sorting ───────────────────────────────────────────────
     sortKey: "",
     sortDir: "asc",
@@ -620,18 +624,51 @@ function cleanBlueApp() {
     },
 
     updateKecamatanChart() {
-      // Hitung jumlah pelaku per kecamatan dari data filtered
-      const map = new Map();
-      this.filtered.forEach((r) => {
-        const kec = r.kecamatan?.trim();
-        if (kec) map.set(kec, (map.get(kec) || 0) + 1);
-      });
+      const mode = this.kecChartMode || "pelaku_usaha";
 
-      // Urutkan descending
-      const sorted  = Array.from(map.entries()).sort((a, b) => b[1] - a[1]);
-      const labels  = sorted.map(([k]) => k);
-      const data    = sorted.map(([, v]) => v);
-      const colors  = labels.map((_, i) => `hsl(${(i * 47 + 190) % 360}, 65%, 55%)`);
+      // ── Konfigurasi per mode ────────────────────────────────
+      const modeConfig = {
+        pelaku_usaha:   { title: "Jumlah Pelaku Usaha per Kecamatan", field: "kecamatan",     tooltip: "orang",     unique: false },
+        kelompok:       { title: "Jumlah Kelompok per Kecamatan",      field: "kecamatan",     tooltip: "kelompok",  unique: true  },
+        wadah_budidaya: { title: "Jumlah per Wadah Budidaya",          field: "wadah_budidaya", tooltip: "orang",    unique: false },
+        jenis_usaha:    { title: "Jumlah per Jenis Usaha",             field: "jenis_usaha",   tooltip: "orang",     unique: false },
+        jenis_ikan:     { title: "Jumlah per Jenis Ikan",              field: "jenis_ikan",    tooltip: "orang",     unique: false },
+      };
+      const cfg = modeConfig[mode];
+      this.kecChartTitle = cfg.title;
+
+      // ── Hitung data sesuai mode ─────────────────────────────
+      let map = new Map();
+
+      if (mode === "kelompok") {
+        // Hitung kelompok unik per kecamatan
+        const kelPerKec = new Map();
+        this.filtered.forEach((r) => {
+          const kec = r.kecamatan?.trim();
+          const kel = r.kelompok?.trim();
+          if (!kec || !kel) return;
+          if (!kelPerKec.has(kec)) kelPerKec.set(kec, new Set());
+          kelPerKec.get(kec).add(kel);
+        });
+        kelPerKec.forEach((set, kec) => map.set(kec, set.size));
+      } else if (mode === "pelaku_usaha") {
+        // Hitung jumlah baris per kecamatan
+        this.filtered.forEach((r) => {
+          const kec = r.kecamatan?.trim();
+          if (kec) map.set(kec, (map.get(kec) || 0) + 1);
+        });
+      } else {
+        // Hitung jumlah baris per nilai field (wadah / jenis_usaha / jenis_ikan)
+        this.filtered.forEach((r) => {
+          const val = r[cfg.field]?.trim();
+          if (val) map.set(val, (map.get(val) || 0) + 1);
+        });
+      }
+
+      const sorted = Array.from(map.entries()).sort((a, b) => b[1] - a[1]);
+      const labels = sorted.map(([k]) => k);
+      const data   = sorted.map(([, v]) => v);
+      const colors = labels.map((_, i) => `hsl(${(i * 47 + 190) % 360}, 65%, 55%)`);
 
       // ── Hancurkan chart kecamatan lama ──────────────────────
       const kecEl = document.getElementById("kecamatanChart");
@@ -657,13 +694,20 @@ function cleanBlueApp() {
       const gridColor = isDark ? "#475569" : "#f3f4f6";
       const dlColor   = isDark ? "#e2e8f0" : "#1f2937";
 
+      // ── Tinggi canvas dinamis (lebih banyak bar → lebih tinggi) ──
+      const minHeight = 240;
+      const barHeight = 34;
+      const dynamicH  = Math.max(minHeight, labels.length * barHeight + 60);
+      el.parentElement.style.height = dynamicH + "px";
+      el.height = dynamicH;
+
       Chart.register(ChartDataLabels);
       this._kecChart = new Chart(el.getContext("2d"), {
         type: "bar",
         data: {
           labels,
           datasets: [{
-            label: "Jumlah Pelaku Usaha",
+            label: cfg.title,
             data,
             backgroundColor: colors,
             borderColor:      colors.map((c) => c.replace("55%", "40%")),
@@ -679,21 +723,21 @@ function cleanBlueApp() {
             legend: { display: false },
             tooltip: {
               callbacks: {
-                label: (ctx) => ` ${ctx.parsed.x} orang`,
+                label: (ctx) => ` ${ctx.parsed.x.toLocaleString()} ${cfg.tooltip}`,
               },
             },
             datalabels: {
               anchor: "end", align: "end",
               color: dlColor,
               font: { weight: "bold", size: 11 },
-              formatter: (v) => v,
+              formatter: (v) => v.toLocaleString(),
             },
           },
           scales: {
             x: { beginAtZero: true, ticks: { color: subColor, font: { size: 10 } }, grid: { color: gridColor } },
             y: { ticks: { color: textColor, font: { size: 11 } }, grid: { display: false } },
           },
-          layout: { padding: { right: 32 } },
+          layout: { padding: { right: 36 } },
         },
         plugins: [ChartDataLabels],
       });
