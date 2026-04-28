@@ -173,7 +173,7 @@ function cleanBlueApp() {
         this.applyFilters();
         this.isLoading = false;
         // Render ulang chart setelah layout stabil (penting untuk mobile)
-        setTimeout(() => { this.updatePieChart(); this.updateKecamatanChart(); }, 100);
+        setTimeout(() => { this.updatePieChart(); this.updateKecamatanChart(); }, 350);
       } catch (err) {
         console.error("Error loading sheet:", err);
         this.isLoading = false;
@@ -517,11 +517,23 @@ function cleanBlueApp() {
       const makeChart = (canvasId) => {
         const el = document.getElementById(canvasId);
         if (!el) return null;
-        // Skip jika elemen atau parent-nya tidak terlihat (display:none)
-        if (el.offsetParent === null && !document.body.contains(el)) return null;
-        const parent = el.closest('[class*="hidden"]');
-        const isHidden = parent && window.getComputedStyle(parent).display === 'none';
-        if (isHidden) return null;
+
+        // ── Cek display:none dengan menelusuri seluruh ancestor ──
+        // (lebih andal daripada class matching, tidak tertipu overflow-hidden)
+        let ancestor = el.parentElement;
+        while (ancestor && ancestor !== document.body) {
+          if (window.getComputedStyle(ancestor).display === 'none') return null;
+          ancestor = ancestor.parentElement;
+        }
+
+        // ── Paksa dimensi canvas sesuai container sebelum Chart.js membaca ──
+        const container = el.parentElement;
+        if (container) {
+          const w = container.offsetWidth  || container.clientWidth  || 300;
+          const h = container.offsetHeight || container.clientHeight || 180;
+          if (w > 0) el.width  = w;
+          if (h > 0) el.height = h;
+        }
         return new Chart(el.getContext("2d"), {
           type: isPie ? "pie" : "bar",
           data: {
@@ -612,6 +624,15 @@ function cleanBlueApp() {
       if (this._kecChart) { this._kecChart.destroy(); this._kecChart = null; }
       const el = document.getElementById("kecamatanChart");
       if (!el || labels.length === 0) return;
+
+      // ── Paksa dimensi canvas sesuai container ──────────────
+      const kecContainer = el.parentElement;
+      if (kecContainer) {
+        const kw = kecContainer.offsetWidth  || kecContainer.clientWidth  || 300;
+        const kh = kecContainer.offsetHeight || kecContainer.clientHeight || 240;
+        if (kw > 0) el.width  = kw;
+        if (kh > 0) el.height = kh;
+      }
 
       // ── Warna dinamis (light / dark mode) ──────────────────
       const isDark    = this.darkMode;
