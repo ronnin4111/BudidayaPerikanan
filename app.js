@@ -838,69 +838,355 @@ function cleanBlueApp() {
       XLSX.writeFile(wb, `data_perikanan_${new Date().toLocaleDateString("id-ID").replace(/\//g, "-")}.xlsx`);
     },
 
-    downloadPDF() {
+    async downloadPDF() {
       if (this.filtered.length === 0) { alert("Tidak ada data untuk diunduh."); return; }
 
       const { jsPDF } = window.jspdf;
-      const doc       = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
+      const W = 297, H = 210, M = 14; // A4 landscape dalam mm
 
-      doc.setFontSize(13);
-      doc.setTextColor(14, 116, 144);
-      doc.setFont(undefined, "bold");
-      doc.text("DATA PERIKANAN BUDIDAYA DPKPP KAB. MEMPAWAH", 14, 14);
+      // ── Statistik ringkasan ─────────────────────────────────
+      const f          = this.filtered;
+      const sumField   = (k) => f.reduce((t, x) => t + (x[k] || 0), 0);
+      const kelSet     = new Set(f.map((r) => r.kelompok).filter(Boolean));
+      const totPelaku  = f.length;
+      const totKelompok= kelSet.size;
+      const totProduksi= sumField("produksi");
+      const totLahan   = sumField("lahan");
+      const totKolam   = sumField("kolam");
 
-      doc.setFontSize(8);
-      doc.setFont(undefined, "normal");
-      doc.setTextColor(80, 80, 80);
-      const tgl = new Date().toLocaleDateString("id-ID", { weekday: "long", year: "numeric", month: "long", day: "numeric" });
-      doc.text(`Dicetak: ${tgl}  |  Total Data: ${this.filtered.length} orang`, 14, 20);
+      // ── Filter aktif ────────────────────────────────────────
+      const af = [];
+      if (this.selected.kecamatan.length)      af.push(`Kecamatan: ${this.selected.kecamatan.join(", ")}`);
+      if (this.selected.desa.length)           af.push(`Desa: ${this.selected.desa.join(", ")}`);
+      if (this.selected.kelompok.length)       af.push(`Kelompok: ${this.selected.kelompok.join(", ")}`);
+      if (this.selected.jenis_usaha.length)    af.push(`Jenis Usaha: ${this.selected.jenis_usaha.join(", ")}`);
+      if (this.selected.wadah_budidaya.length) af.push(`Wadah: ${this.selected.wadah_budidaya.join(", ")}`);
+      if (this.selected.jenis_ikan.length)     af.push(`Ikan: ${this.selected.jenis_ikan.join(", ")}`);
+      if (this.searchQuery.trim())             af.push(`Cari: "${this.searchQuery.trim()}"`);
 
-      const activeFilters = [];
-      if (this.selected.kecamatan.length)      activeFilters.push(`Kecamatan: ${this.selected.kecamatan.join(", ")}`);
-      if (this.selected.desa.length)           activeFilters.push(`Desa: ${this.selected.desa.join(", ")}`);
-      if (this.selected.kelompok.length)       activeFilters.push(`Kelompok: ${this.selected.kelompok.join(", ")}`);
-      if (this.selected.jenis_usaha.length)    activeFilters.push(`Jenis Usaha: ${this.selected.jenis_usaha.join(", ")}`);
-      if (this.selected.wadah_budidaya.length) activeFilters.push(`Wadah: ${this.selected.wadah_budidaya.join(", ")}`);
-      if (this.selected.jenis_ikan.length)     activeFilters.push(`Ikan: ${this.selected.jenis_ikan.join(", ")}`);
-      if (this.searchQuery.trim())             activeFilters.push(`Cari: "${this.searchQuery.trim()}"`);
+      // ── Ambil snapshot grafik ───────────────────────────────
+      const prevMode = this.kecChartMode;
+      const kecEl    = document.getElementById("kecamatanChart");
+      const kecCont  = kecEl?.parentElement;
+      const origH    = kecCont?.style.height || "";
 
-      if (activeFilters.length > 0) {
+      // Paksa tinggi tetap agar semua snapshot proporsional
+      if (kecCont) kecCont.style.height = "320px";
+
+      const snap = async (mode) => {
+        this.kecChartMode = mode;
+        this.updateKecamatanChart();
+        await new Promise((r) => setTimeout(r, 200));
+        try { return kecEl?.toDataURL("image/png"); } catch { return null; }
+      };
+
+      const imgPelaku = await snap("pelaku_usaha");
+      const imgJenis  = await snap("jenis_usaha");
+      const imgWadah  = await snap("wadah_budidaya");
+      const imgIkan   = await snap("jenis_ikan");
+      const imgProd   = await snap("produksi");
+
+      // Snapshot pie/bar chart sisi-sidebar
+      const sideEl  = document.getElementById("barChart") || document.getElementById("barChartMobile");
+      const imgPie  = sideEl ? (() => { try { return sideEl.toDataURL("image/png"); } catch { return null; } })() : null;
+
+      // Restore mode & tinggi asli
+      if (kecCont) kecCont.style.height = origH;
+      this.kecChartMode = prevMode;
+      this.updateKecamatanChart();
+
+      // ── Buat dokumen PDF ────────────────────────────────────
+      const doc = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
+      const tgl      = new Date().toLocaleDateString("id-ID", { weekday: "long", year: "numeric", month: "long", day: "numeric" });
+      const tglShort = new Date().toLocaleDateString("id-ID");
+      const yr       = new Date().getFullYear();
+
+      // ── Helper: kop halaman ─────────────────────────────────
+      const drawHeader = (title, subtitle) => {
+        doc.setFillColor(14, 116, 144);
+        doc.rect(0, 0, W, 16, "F");
+        // Strip tipis lebih gelap di bawah header
+        doc.setFillColor(10, 90, 110);
+        doc.rect(0, 14, W, 2, "F");
+        // Lingkaran logo
+        doc.setFillColor(255, 255, 255);
+        doc.circle(M + 6, 8, 5.5, "F");
+        doc.setFontSize(9);
+        doc.setFont(undefined, "bold");
+        doc.setTextColor(14, 116, 144);
+        doc.text("DKP", M + 6, 9.5, { align: "center" });
+        // Judul
+        doc.setTextColor(255, 255, 255);
+        doc.setFontSize(11);
+        doc.setFont(undefined, "bold");
+        doc.text(title, M + 15, 8);
         doc.setFontSize(7.5);
-        doc.setTextColor(100, 100, 100);
-        doc.text(`Filter aktif: ${activeFilters.join("  |  ")}`, 14, 25);
-      }
+        doc.setFont(undefined, "normal");
+        doc.text(subtitle, M + 15, 13.5);
+        // Tanggal kanan
+        doc.setFontSize(7.5);
+        doc.text(tgl, W - M, 8, { align: "right" });
+        doc.text("DPKPP Kab. Mempawah  —  Prov. Kalimantan Barat", W - M, 13.5, { align: "right" });
+      };
 
-      const startY = activeFilters.length > 0 ? 29 : 25;
-      const head   = [["No", "Nama Pelaku Usaha", "Kelompok", "Kecamatan", "Desa", "Jenis Usaha", "Wadah Budidaya", "Jenis Ikan"]];
-      const body   = this.filtered.map((row, i) => [
-        i + 1, row.nama || "", row.kelompok || "", row.kecamatan || "",
-        row.desa || "", row.jenis_usaha || "", row.wadah_budidaya || "", row.jenis_ikan || "",
+      // ── Helper: garis + teks footer ────────────────────────
+      const drawFooter = (pageLabel) => {
+        doc.setDrawColor(180, 180, 180);
+        doc.setLineWidth(0.3);
+        doc.line(M, H - 8, W - M, H - 8);
+        doc.setFontSize(6.5);
+        doc.setTextColor(150, 150, 150);
+        doc.text(
+          `${pageLabel}  |  Dicetak: ${tgl}  |  © ${yr} Perikanan Budidaya — DPKPP Kab. Mempawah`,
+          W / 2, H - 4.5, { align: "center" }
+        );
+      };
+
+      // ── Helper: kotak chart ─────────────────────────────────
+      const chartBox = (x, y, w, h, imgData) => {
+        doc.setFillColor(248, 250, 252);
+        doc.setDrawColor(210, 210, 210);
+        doc.setLineWidth(0.3);
+        doc.roundedRect(x, y, w, h, 2, 2, "FD");
+        if (imgData) doc.addImage(imgData, "PNG", x + 1.5, y + 1.5, w - 3, h - 3);
+      };
+
+      // ── Helper: label section ───────────────────────────────
+      const sectionLabel = (text, x, y) => {
+        doc.setFontSize(8);
+        doc.setFont(undefined, "bold");
+        doc.setTextColor(14, 116, 144);
+        doc.text(text, x, y);
+      };
+
+      // ── Helper: kotak filter ────────────────────────────────
+      const drawFilterBox = (startY) => {
+        if (af.length === 0) return startY;
+        doc.setFillColor(240, 249, 255);
+        doc.setDrawColor(14, 116, 144);
+        doc.setLineWidth(0.25);
+        doc.roundedRect(M, startY - 3, W - M * 2, 8, 1.5, 1.5, "FD");
+        doc.setFontSize(7);
+        doc.setFont(undefined, "bold");
+        doc.setTextColor(14, 116, 144);
+        doc.text("Filter: ", M + 2, startY + 1.5);
+        doc.setFont(undefined, "normal");
+        doc.setTextColor(50, 50, 50);
+        const ft = doc.splitTextToSize(af.join("  |  "), W - M * 2 - 18);
+        doc.text(ft[0], M + 14, startY + 1.5);
+        return startY + 10;
+      };
+
+      // ════════════════════════════════════════════════════════
+      //  HALAMAN 1 — RINGKASAN EKSEKUTIF
+      // ════════════════════════════════════════════════════════
+      drawHeader("DATA PERIKANAN BUDIDAYA", "Laporan Ringkasan Eksekutif");
+
+      let cy = 22;
+      cy = drawFilterBox(cy);
+
+      // 4 Kartu statistik
+      const cardW  = (W - M * 2 - 9) / 4;
+      const cardH  = 20;
+      const cards  = [
+        { label: "Total Pelaku Usaha",  val: totPelaku.toLocaleString("id-ID"),    unit: "orang",    bg: [224,242,254], fg: [14,116,144]  },
+        { label: "Total Kelompok",      val: totKelompok.toLocaleString("id-ID"),  unit: "kelompok", bg: [209,250,229], fg: [5,150,105]   },
+        { label: "Total Produksi",      val: totProduksi.toLocaleString("id-ID"),  unit: "Kg",       bg: [237,233,254], fg: [109,40,217]  },
+        { label: "Total Luas Lahan",    val: totLahan.toLocaleString("id-ID"),     unit: "m²",       bg: [254,243,199], fg: [180,100,6]   },
+      ];
+      cards.forEach((c, i) => {
+        const cx = M + i * (cardW + 3);
+        doc.setFillColor(...c.bg);
+        doc.setDrawColor(...c.fg);
+        doc.setLineWidth(0.4);
+        doc.roundedRect(cx, cy, cardW, cardH, 2, 2, "FD");
+        // Strip kiri
+        doc.setFillColor(...c.fg);
+        doc.rect(cx, cy, 3, cardH, "F");
+        // Label
+        doc.setFontSize(6.5);
+        doc.setFont(undefined, "normal");
+        doc.setTextColor(80, 80, 80);
+        doc.text(c.label, cx + 5, cy + 5.5);
+        // Nilai besar
+        doc.setFontSize(15);
+        doc.setFont(undefined, "bold");
+        doc.setTextColor(...c.fg);
+        doc.text(c.val, cx + 5, cy + 15);
+        // Unit
+        doc.setFontSize(6.5);
+        doc.setFont(undefined, "normal");
+        doc.setTextColor(130, 130, 130);
+        doc.text(c.unit, cx + cardW - 2, cy + 15, { align: "right" });
+      });
+      cy += cardH + 5;
+
+      // 2 grafik berdampingan (pie/bar sidebar + pelaku per kecamatan)
+      const chartH1 = H - cy - 14;
+      const halfW   = (W - M * 2 - 6) / 2;
+
+      sectionLabel("Distribusi Jenis Usaha", M, cy - 1);
+      sectionLabel("Pelaku Usaha per Kecamatan", M + halfW + 6, cy - 1);
+      chartBox(M, cy, halfW, chartH1, imgPie);
+      chartBox(M + halfW + 6, cy, halfW, chartH1, imgPelaku);
+
+      drawFooter("Halaman 1 dari 3");
+
+      // ════════════════════════════════════════════════════════
+      //  HALAMAN 2 — GRAFIK ANALISIS PER KECAMATAN
+      // ════════════════════════════════════════════════════════
+      doc.addPage();
+      drawHeader("ANALISIS PER KECAMATAN", "Perbandingan Jenis Usaha · Wadah Budidaya · Jenis Ikan · Produksi");
+
+      cy = 21;
+      const rowH = (H - cy - 14) / 2 - 5;
+
+      // Baris atas: jenis usaha + wadah
+      sectionLabel("Jenis Usaha per Kecamatan", M, cy - 1);
+      sectionLabel("Wadah Budidaya per Kecamatan", M + halfW + 6, cy - 1);
+      chartBox(M, cy, halfW, rowH, imgJenis);
+      chartBox(M + halfW + 6, cy, halfW, rowH, imgWadah);
+
+      cy += rowH + 7;
+
+      // Baris bawah: jenis ikan + produksi
+      sectionLabel("Jenis Ikan per Kecamatan", M, cy - 1);
+      sectionLabel("Total Produksi per Kecamatan (Kg)", M + halfW + 6, cy - 1);
+      chartBox(M, cy, halfW, rowH, imgIkan);
+      chartBox(M + halfW + 6, cy, halfW, rowH, imgProd);
+
+      drawFooter("Halaman 2 dari 3");
+
+      // ════════════════════════════════════════════════════════
+      //  HALAMAN 3+ — TABEL DATA LENGKAP
+      // ════════════════════════════════════════════════════════
+      doc.addPage();
+      drawHeader(
+        `DAFTAR PELAKU USAHA  (${totPelaku.toLocaleString("id-ID")} orang)`,
+        "Data lengkap budidaya perikanan — semua kecamatan"
+      );
+
+      cy = 21;
+      cy = drawFilterBox(cy);
+
+      const head = [["No", "Nama Pelaku Usaha", "Kelompok", "Kecamatan", "Desa", "Jenis Usaha", "Wadah Budidaya", "Jenis Ikan", "Produksi (Kg)", "Kolam"]];
+      const body = f.map((r, i) => [
+        i + 1,
+        r.nama          || "",
+        r.kelompok      || "",
+        r.kecamatan     || "",
+        r.desa          || "",
+        r.jenis_usaha   || "",
+        r.wadah_budidaya|| "",
+        r.jenis_ikan    || "",
+        r.produksi > 0  ? r.produksi.toLocaleString("id-ID") : "",
+        r.kolam > 0     ? r.kolam : "",
       ]);
 
+      // Baris total di footer tabel
+      const footRow = [
+        { content: `TOTAL  —  ${totPelaku.toLocaleString("id-ID")} orang`, colSpan: 8,
+          styles: { fontStyle: "bold", halign: "right", fillColor: [14,116,144], textColor: 255, fontSize: 7.5 } },
+        { content: totProduksi.toLocaleString("id-ID"),
+          styles: { fontStyle: "bold", halign: "right", fillColor: [14,116,144], textColor: 255 } },
+        { content: totKolam.toLocaleString("id-ID"),
+          styles: { fontStyle: "bold", halign: "center", fillColor: [14,116,144], textColor: 255 } },
+      ];
+
+      let lastY = cy;
+      let lastPage = 3;
+
       doc.autoTable({
-        head, body, startY,
-        styles:             { fontSize: 7.5, cellPadding: 2, overflow: "linebreak" },
-        headStyles:         { fillColor: [14, 116, 144], textColor: 255, fontStyle: "bold" },
+        head, body,
+        foot:      [footRow],
+        startY:    cy,
+        showFoot:  "lastPage",
+        styles:             { fontSize: 6.8, cellPadding: 1.6, overflow: "linebreak" },
+        headStyles:         { fillColor: [14, 116, 144], textColor: 255, fontStyle: "bold", fontSize: 7.5 },
+        footStyles:         { fillColor: [14, 116, 144], textColor: 255 },
         alternateRowStyles: { fillColor: [240, 249, 255] },
         columnStyles: {
-          0: { cellWidth: 8  }, 1: { cellWidth: 38 }, 2: { cellWidth: 32 },
-          3: { cellWidth: 30 }, 4: { cellWidth: 28 }, 5: { cellWidth: 25 },
-          6: { cellWidth: 28 }, 7: { cellWidth: 40 },
+          0: { cellWidth: 7,  halign: "center" },
+          1: { cellWidth: 34 },
+          2: { cellWidth: 27 },
+          3: { cellWidth: 24 },
+          4: { cellWidth: 24 },
+          5: { cellWidth: 22 },
+          6: { cellWidth: 23 },
+          7: { cellWidth: 34 },
+          8: { cellWidth: 20, halign: "right" },
+          9: { cellWidth: 12, halign: "center" },
         },
-        didDrawPage(data) {
-          const pageCount = doc.internal.getNumberOfPages();
-          doc.setFontSize(7);
-          doc.setTextColor(150);
+        didDrawPage: (data) => {
+          lastPage = 2 + data.pageNumber;
+          lastY    = data.cursor?.y || cy;
+          if (data.pageNumber > 1) {
+            // Kop mini halaman lanjutan
+            doc.setFillColor(14, 116, 144);
+            doc.rect(0, 0, W, 9, "F");
+            doc.setTextColor(255, 255, 255);
+            doc.setFontSize(7);
+            doc.setFont(undefined, "normal");
+            doc.text("Daftar Pelaku Usaha Budidaya Perikanan — DPKPP Kab. Mempawah", M, 6);
+          }
+          // Footer per halaman
+          doc.setDrawColor(180, 180, 180);
+          doc.setLineWidth(0.3);
+          doc.line(M, H - 8, W - M, H - 8);
+          doc.setFontSize(6.5);
+          doc.setTextColor(150, 150, 150);
           doc.text(
-            `Halaman ${data.pageNumber} dari ${pageCount}  —  © ${new Date().getFullYear()} Perikanan Budidaya DPKPP Kab. Mempawah`,
-            doc.internal.pageSize.getWidth() / 2,
-            doc.internal.pageSize.getHeight() - 5,
-            { align: "center" }
+            `Halaman ${lastPage}  |  Dicetak: ${tgl}  |  © ${yr} DPKPP Kab. Mempawah`,
+            W / 2, H - 4.5, { align: "center" }
           );
         },
       });
 
-      doc.save(`data_perikanan_${new Date().toLocaleDateString("id-ID").replace(/\//g, "-")}.pdf`);
+      // ── Area Tanda Tangan ──────────────────────────────────
+      lastY = (doc.lastAutoTable?.finalY || lastY) + 8;
+      // Tambah halaman baru jika tidak cukup ruang (min 45mm)
+      if (lastY + 45 > H - 10) {
+        doc.addPage();
+        doc.setFillColor(14, 116, 144);
+        doc.rect(0, 0, W, 9, "F");
+        doc.setTextColor(255, 255, 255);
+        doc.setFontSize(7);
+        doc.text("DATA PERIKANAN BUDIDAYA — DPKPP Kab. Mempawah", M, 6);
+        doc.setDrawColor(180, 180, 180);
+        doc.setLineWidth(0.3);
+        doc.line(M, H - 8, W - M, H - 8);
+        doc.setFontSize(6.5);
+        doc.setTextColor(150, 150, 150);
+        doc.text(`Dicetak: ${tgl}  |  © ${yr} DPKPP Kab. Mempawah`, W / 2, H - 4.5, { align: "center" });
+        lastY = 16;
+      }
+
+      // Kotak tanda tangan kanan bawah
+      const sigW = 70, sigX = W - M - sigW, sigH = 38;
+      doc.setFontSize(7.5);
+      doc.setFont(undefined, "normal");
+      doc.setTextColor(50, 50, 50);
+      doc.text(`Mempawah, ${tglShort}`, sigX + sigW / 2, lastY + 3, { align: "center" });
+      doc.setFont(undefined, "bold");
+      doc.text("Kepala Dinas DPKPP", sigX + sigW / 2, lastY + 8, { align: "center" });
+      doc.setFont(undefined, "normal");
+      doc.text("Kabupaten Mempawah", sigX + sigW / 2, lastY + 12.5, { align: "center" });
+      // Kotak kosong untuk TTD
+      doc.setDrawColor(140, 140, 140);
+      doc.setLineWidth(0.35);
+      doc.roundedRect(sigX, lastY + 14, sigW, sigH - 14, 1.5, 1.5, "S");
+      // Nama & NIP
+      doc.setFontSize(8);
+      doc.setFont(undefined, "bold");
+      doc.setTextColor(30, 30, 30);
+      doc.text("(................................................)", sigX + sigW / 2, lastY + sigH + 3, { align: "center" });
+      doc.setFont(undefined, "normal");
+      doc.setFontSize(7);
+      doc.setTextColor(80, 80, 80);
+      doc.text("NIP. ..........................................", sigX + sigW / 2, lastY + sigH + 8, { align: "center" });
+
+      // ── Simpan ─────────────────────────────────────────────
+      doc.save(`laporan_perikanan_${tglShort.replace(/\//g, "-")}.pdf`);
     },
 
     // ══════════════════════════════════════════════════════════
