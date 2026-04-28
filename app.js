@@ -499,8 +499,16 @@ function cleanBlueApp() {
       }
 
       const colors = chartLabels.map((_, i) => `hsl(${(i * 137.5) % 360}, 70%, 60%)`);
-      if (this.barChart)       this.barChart.destroy();
-      if (this.barChartMobile) this.barChartMobile.destroy();
+
+      // ── Hancurkan chart lama dengan API resmi Chart.js ──────
+      // Menggunakan Chart.getChart() jauh lebih andal daripada
+      // menyimpan referensi sendiri — tidak ada "chart zombie" di canvas.
+      ["barChart", "barChartMobile"].forEach((id) => {
+        const existing = Chart.getChart(document.getElementById(id));
+        if (existing) existing.destroy();
+      });
+      this.barChart = null;
+      this.barChartMobile = null;
 
       Chart.register(ChartDataLabels);
       const isPie = type === "pie";
@@ -534,6 +542,10 @@ function cleanBlueApp() {
           if (w > 0) el.width  = w;
           if (h > 0) el.height = h;
         }
+
+        // ── Pastikan tidak ada chart zombie tersisa di canvas ──
+        const zombie = Chart.getChart(el);
+        if (zombie) zombie.destroy();
         return new Chart(el.getContext("2d"), {
           type: isPie ? "pie" : "bar",
           data: {
@@ -621,8 +633,12 @@ function cleanBlueApp() {
       const data    = sorted.map(([, v]) => v);
       const colors  = labels.map((_, i) => `hsl(${(i * 47 + 190) % 360}, 65%, 55%)`);
 
-      if (this._kecChart) { this._kecChart.destroy(); this._kecChart = null; }
-      const el = document.getElementById("kecamatanChart");
+      // ── Hancurkan chart kecamatan lama ──────────────────────
+      const kecEl = document.getElementById("kecamatanChart");
+      const existingKec = kecEl && Chart.getChart(kecEl);
+      if (existingKec) existingKec.destroy();
+      this._kecChart = null;
+      const el = kecEl;
       if (!el || labels.length === 0) return;
 
       // ── Paksa dimensi canvas sesuai container ──────────────
